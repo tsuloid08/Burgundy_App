@@ -153,7 +153,7 @@ Excluido del MVP: apalancamiento/margen avanzado, futuros, order book profundo, 
 > - **Horizontes MVP: Intradía y 1 semana, únicamente.** Los horizontes de 1 mes a 2 años son post-MVP (Fase 3+).
 > - **Sin leverage** (ver `LEVERAGE_MVP_LIMITS`). **Sin guardar/retomar sesiones largas.** **Sin export de sesión individual:** solo export de progreso completo (`.burgundy`).
 > - **Rankings de sandbox MVP:** solo personal best por seed guardada. Las claves de ranking por mercado, por horizonte y por dificultad son post-MVP.
-> - **Presupuesto duro de generación y render:** máximo de velas por sesión acotado por el horizonte permitido; 4–8 sub-ticks por vela; ventana de render deslizante (~120 velas visibles); objetivo 60 fps con fallback 30 fps documentado en gama media/baja.
+> - **Presupuesto duro de generación y render:** máximo de velas por sesión acotado por el horizonte permitido; 4–8 sub-ticks por vela; ventana de render deslizante (~120 velas visibles); objetivo 60 fps con fallback 30 fps documentado en gama media/baja. El detalle normativo del render y la densidad por defecto del HUD viven en `BEGINNER_HUD_LOCK` (documento 07).
 > - El sandbox completo (los 7 horizontes, long sessions, export por sesión, rankings ampliados) pertenece a la **Fase 3+**; los desafíos de 1–2 años (interés compuesto) son post-MVP.
 
 ---
@@ -255,16 +255,18 @@ El **Learning Context Contract (LCC)** es el contrato que define qué debe apren
 
 ## 15. Stack técnico del MVP
 
-Conforme al Bloque 08:
+Conforme al Bloque 08 — versiones, plataforma y flujo de trabajo cerrados por `TECH_STACK_LOCK`, `PLATFORM_TARGET_LOCK` y `WINDOWS_POWERSHELL_WORKFLOW` (documento 08):
 
 | Capa | Elección | Nota |
 |------|----------|------|
-| Framework móvil | **React Native** (Android 15+, iOS 20+) | Un solo código base, ecosistema maduro |
+| Framework móvil | **React Native 0.83 vía Expo SDK 55** (managed + dev build, solo New Architecture) | Matriz de versiones cerrada por `TECH_STACK_LOCK` (documento 08); `npx expo-doctor@latest` obligatorio tras instalar |
+| Plataformas | Android 15+ (`minSdk 35`, target/compile 36) · iOS 20+ (→ deployment target 26.0) | Mapeo y comandos de verificación: `PLATFORM_TARGET_LOCK` (documento 08) |
 | Lenguaje | TypeScript estricto | Tipos para contratos, seeds y esquemas |
 | Motor de simulación | Módulo TS puro, sin dependencias de UI | Determinista, testeable, agnóstico a la fuente de velas |
-| Gráfico de velas | Renderizado nativo/canvas optimizado | Foco visual principal; colores #4A6D56 / #802F3E |
-| Persistencia | SQLite local + archivos de export | Offline-first |
-| Estado | Store ligero unidireccional | El motor nunca depende del estado de UI |
+| Gráfico de velas | `@shopify/react-native-skia` (canvas GPU) | Foco visual principal; colores #4A6D56 / #802F3E |
+| Persistencia | `expo-sqlite` (WAL) + MMKV + archivos de export | Offline-first |
+| Estado | Zustand (UI); el motor como fuente de verdad de la simulación | El motor nunca depende del estado de UI |
+| Entorno de desarrollo | Windows + PowerShell | Comandos canónicos y reglas: `WINDOWS_POWERSHELL_WORKFLOW` (documento 08); prohibido asumir bash/macOS |
 | Tema | Sistema de diseño Burgundy (paleta fija) | #1A1617, #571324, #2E2E2E, #C9A050, #4A6D56, #802F3E |
 
 Principio arquitectónico clave: **el motor de simulación es una librería pura** — recibe seed + plantilla + contrato, produce path + eventos; la UI solo observa. Esto garantiza determinismo, replay exacto y testeo sin emulador.

@@ -4,7 +4,7 @@
 **Autor / firma:** tsuloid
 **Idioma:** Español (LATAM)
 **Estado:** Documento de arquitectura — sin código, sin pantallas, previo al desarrollo
-**Plataformas objetivo:** Android 15+ / iOS 20+ · Offline-first · Sin login · Sin cuenta en la nube
+**Plataformas objetivo:** Android 15+ / iOS 20+ (configuración verificable: `PLATFORM_TARGET_LOCK`, §2.4) · Offline-first · Sin login · Sin cuenta en la nube
 
 ---
 
@@ -48,16 +48,16 @@ Antes de recomendar un stack, se evalúan las seis opciones contra los requisito
 
 | Capa | Tecnología recomendada |
 |---|---|
-| Framework móvil | React Native (Nueva Arquitectura: Fabric + TurboModules) |
+| Framework móvil | React Native 0.83 vía Expo SDK 55 (Nueva Arquitectura: Fabric + TurboModules) — matriz cerrada por `TECH_STACK_LOCK` (§2.3) |
 | Lenguaje | TypeScript estricto (`strict: true`) en toda la app y el motor |
 | Runtime JS | Hermes |
 | Render de gráficos (velas) | `@shopify/react-native-skia` (canvas GPU) |
 | Animaciones / gestos | `react-native-reanimated` + `react-native-gesture-handler` |
 | Estado global | Zustand (estado de UI/sesión) + el motor como fuente de verdad de la simulación |
-| Persistencia local | SQLite (`op-sqlite` o `expo-sqlite`) para datos estructurados; MMKV para preferencias |
+| Persistencia local | SQLite vía `expo-sqlite` en modo WAL para datos estructurados (cerrado por `TECH_STACK_LOCK`, §2.3; `op-sqlite` queda como alternativa documentada, no instalada); MMKV para preferencias |
 | Export/import | Archivo JSON versionado + checksum, vía file system y share sheet del SO |
 | Tests | Vitest/Jest para el motor (puro), React Native Testing Library para UI, Maestro/Detox para E2E |
-| Tooling | Expo (con dev builds / prebuild) para acelerar el MVP sin perder acceso nativo |
+| Tooling | Expo SDK 55 managed + dev build (`expo-dev-client`); prebuild solo cuando se requiera — flujo cerrado por `TECH_STACK_LOCK` (§2.3) y `WINDOWS_POWERSHELL_WORKFLOW` (§2.5) |
 
 ### 2.1 Por qué este stack es adecuado para Burgundy
 
@@ -78,6 +78,100 @@ Antes de recomendar un stack, se evalúan las seis opciones contra los requisito
 | Rendimiento en gama baja LATAM (3–4 GB RAM) | Media | Presupuesto de rendimiento explícito (§14); virtualización de listas; limitar velas visibles; perfiles en dispositivos físicos de gama baja desde el inicio |
 | Tamaño del archivo de export si se guardan paths completos | Baja | Estrategia híbrida seed+path con compresión (§8) |
 | Corrupción de datos locales (cierre forzado, falta de espacio) | Media | SQLite con WAL, escrituras transaccionales, checksum en export, backup automático local rotativo |
+
+### 2.3 Matriz cerrada de stack (`TECH_STACK_LOCK`)
+
+<!-- LOCK: TECH_STACK_LOCK v1 — Documento dueño: 08_technical_architecture.md. Resuelve AUD-009. Los documentos 12 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **TECH_STACK_LOCK v1 — Matriz canónica de dependencias y flujo de build (cerrada).**
+>
+> **Línea base: Expo SDK 55** (línea estable vigente al cierre de este lock, 2026-06; React Native 0.83, React 19.2). SDK 55 ejecuta **exclusivamente la New Architecture** — la Legacy Architecture fue eliminada y no existe flag de retorno, lo que elimina de raíz el riesgo de instalar dependencias incompatibles con Fabric/TurboModules. Toda dependencia nativa se instala con `npx expo install` (resuelve la versión exacta compatible con el SDK); el `package-lock.json` del primer commit del proyecto congela los parches exactos y forma parte de este contrato.
+>
+> | Dependencia | Versión (línea cerrada) | New Architecture | Motivo | Peso aprox.* | Alternativa (descartada) |
+> |---|---|---|---|---|---|
+> | `expo` | `^55.0.0` (SDK 55) | Única arquitectura soportada | Tooling managed + dev builds sin bare | — | Bare RN CLI: más fricción sin beneficio para el MVP |
+> | `react-native` | `0.83.x` (fijada por SDK 55) | ✅ Fabric + TurboModules | Framework móvil | — | Flutter: segunda opción válida, descartada en §1 |
+> | `react` | `19.2.x` (fijada por SDK 55) | ✅ | Requerida por RN 0.83 | — | — |
+> | `typescript` | `~5.9` (plantilla SDK 55), `strict: true` | n/a | Lenguaje único de app y motor | dev | — |
+> | `@shopify/react-native-skia` | `2.x` (resuelta por `expo install`) | ✅ | Render GPU del chart de velas | ~2–3 MB | Victory/TradingView: no soportan playback determinista + paleta propia |
+> | `react-native-reanimated` | `4.x` + `react-native-worklets` (peer obligatorio) | ✅ (requiere New Architecture) | Animaciones en hilo de UI; cursor de playback | ~1 MB | Animated core: insuficiente para 60 fps sostenidos |
+> | `react-native-gesture-handler` | `2.28+` (resuelta por `expo install`) | ✅ | Zoom, pan y crosshair del chart | <1 MB | Gestos de RN core: limitados |
+> | `expo-sqlite` | línea SDK 55 (resuelta por `expo install`) | ✅ | Persistencia estructurada, **modo WAL** | ~1 MB | `op-sqlite`: válida, descartada para no salir del árbol Expo |
+> | `react-native-mmkv` | `3.x` | ✅ TurboModule puro | Preferencias rápidas | <1 MB | AsyncStorage: lento, en desuso |
+> | `zustand` | `^5` | n/a (JS puro) | Estado de UI/app | <100 KB | Redux: sobre-ingeniería — el motor ya es el reducer determinista |
+> | `vitest` | `^3` (dev) | n/a | Tests del motor TS puro en Node | dev | — |
+> | `jest-expo` + RN Testing Library | línea SDK 55 (dev) | ✅ | Tests de componentes RN | dev | — |
+>
+> \* Peso aproximado sobre el binario Android release; son estimaciones a validar en el primer build, no compromisos.
+>
+> **Flujo cerrado: Expo managed + dev build (`expo-dev-client`). Sin bare.** `npx expo prebuild` se ejecuta solo cuando se requiera regenerar los proyectos nativos, siempre con `--clean` y sin ediciones manuales de `android/`/`ios/`: toda configuración nativa vive en `app.json` y config plugins (`expo-build-properties`, ver `PLATFORM_TARGET_LOCK`). **EAS Build queda documentado como opción, no requerido para el MVP local.**
+>
+> **Verificación obligatoria post-instalación:** `npx expo-doctor@latest` sin errores. Es un gate: ninguna dependencia se considera integrada hasta que expo-doctor pase y el corpus dorado de `DETERMINISM_LOCK_V1` siga verde en Node y Hermes.
+>
+> **Política de actualización:** subir de SDK (p. ej. a SDK 56) exige una nueva versión de este lock (v2), expo-doctor limpio y corpus dorado verde. Prohibido instalar versiones fuera de la resolución de `expo install` o mezclar líneas de SDK.
+
+### 2.4 Plataforma objetivo verificable (`PLATFORM_TARGET_LOCK`)
+
+<!-- LOCK: PLATFORM_TARGET_LOCK v1 — Documento dueño: 08_technical_architecture.md. Resuelve AUD-010. Los documentos 09, 12 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **PLATFORM_TARGET_LOCK v1 — Configuración verificable de plataforma (cerrada).**
+>
+> **Android — requisito comercial "Android 15+":**
+> - `minSdkVersion = 35` (Android 15).
+> - `targetSdkVersion = 36` y `compileSdkVersion = 36` (Android 16 — valores por defecto de Expo SDK 55; targeting 36 implica edge-to-edge obligatorio).
+> - Todo se configura vía `expo-build-properties` en `app.json`; prohibido editar Gradle a mano.
+>
+> **iOS — acta de mapeo del requisito comercial "iOS 20+":** Apple nunca publicó iOS 19–25; el versionado saltó de iOS 18 a iOS 26 (2025). Por lo tanto **toda versión real de iOS ≥ 20 es ≥ 26**, y el requisito comercial se cierra así:
+> - `ios.deploymentTarget = "26.0"` (vía `expo-build-properties`).
+> - Los documentos de la serie siguen citando "iOS 20+" como requisito comercial; la verdad técnica es este mapeo. La lectura alternativa (target 18.0) se descarta porque incluiría versiones < 20 y violaría el piso declarado.
+> - El default de Expo SDK 55 es iOS 15.1; el override a 26.0 es deliberado y queda registrado en esta acta.
+>
+> **Comandos de verificación (sintaxis PowerShell — ver `WINDOWS_POWERSHELL_WORKFLOW`):**
+> - `npx expo config --type prebuild` → inspeccionar `android.minSdkVersion`, `android.targetSdkVersion`, `android.compileSdkVersion` e `ios.deploymentTarget` resueltos.
+> - Tras `npx expo prebuild --platform android --clean`: `Select-String -Path .\android\build.gradle -Pattern "SdkVersion"`.
+> - El `Podfile` iOS (`platform :ios, '26.0'`) solo es verificable en macOS o EAS Build; en Windows la verificación iOS se limita a `expo config` (y EAS opcional).
+>
+> **Checklist de emulador/dispositivo del MVP:** emulador Android API 35 y API 36 · dispositivo físico Android de gama media/baja (3–4 GB RAM, perfil LATAM) · simulador/dispositivo iOS 26 (vía macOS o EAS; opcional para el loop local del MVP) · corpus dorado de `DETERMINISM_LOCK_V1` verificado en cada plataforma que compile.
+
+### 2.5 Flujo de trabajo en Windows PowerShell (`WINDOWS_POWERSHELL_WORKFLOW`)
+
+<!-- LOCK: WINDOWS_POWERSHELL_WORKFLOW v1 — Documento dueño: 08_technical_architecture.md. Resuelve AUD-011. Los documentos 12 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **WINDOWS_POWERSHELL_WORKFLOW v1 — El entorno real de desarrollo es Windows + PowerShell (cerrado).**
+>
+> **Comandos canónicos (sintaxis PowerShell):**
+>
+> ```powershell
+> # Crear el proyecto (una sola vez, desde la raíz del repo)
+> npx create-expo-app@latest burgundy-app --template blank-typescript
+> Set-Location .\burgundy-app
+>
+> # Instalar dependencias nativas (siempre vía expo install — TECH_STACK_LOCK)
+> npx expo install expo-dev-client expo-sqlite expo-build-properties @shopify/react-native-skia react-native-reanimated react-native-worklets react-native-gesture-handler react-native-mmkv
+> npm install zustand
+> npm install -D vitest
+>
+> # Verificación obligatoria post-instalación (gate)
+> npx expo-doctor@latest
+>
+> # Tests y lint
+> npm run test
+> npm run lint
+>
+> # Dev build local Android (emulador o dispositivo conectado)
+> npx expo run:android
+>
+> # Prebuild — solo cuando se requiera regenerar el proyecto nativo
+> npx expo prebuild --platform android --clean
+> ```
+>
+> **Reglas obligatorias:**
+> 1. **Sin `&&`:** encadenar con `;` o `if ($?) { ... }` (compatible con Windows PowerShell 5.1 y PowerShell 7).
+> 2. **Variables de entorno:** `$env:NOMBRE = "valor"` — nunca `export`.
+> 3. **Rutas:** separador `\` en comandos de consola; el código y los scripts usan rutas relativas portables resueltas por Node (`path.join`), nunca rutas absolutas ni separadores fijos.
+> 4. **Scripts npm shell-agnósticos:** la lógica vive en scripts Node (`node scripts/<tarea>.mjs`); prohibidas las concatenaciones bash (`&&`, `|`, subshells) dentro de `package.json`.
+> 5. **Prohibido asumir bash/macOS** en documentación, scripts y tooling del repo. Los builds iOS requieren macOS o EAS Build: en Windows, iOS no forma parte del loop local de desarrollo (ver `PLATFORM_TARGET_LOCK`).
+> 6. **Convención de rutas del repo:** el proyecto Expo vive en `burgundy-app\` en la raíz del repo; la documentación, en `docs\architecture\`.
 
 ---
 
@@ -126,7 +220,7 @@ Reglas estrictas:
 - **Modelo de datos del chart:** la UI recibe del motor un *snapshot* inmutable (`velas visibles [0..cursor]`, posiciones, órdenes, equity). El chart es una función pura de ese snapshot + viewport (zoom/pan).
 - **Playback:** un timer de Reanimated avanza el cursor según la velocidad elegida; cada tick de playback solo incrementa un índice — no recalcula nada del mercado. Pausa, retroceso visual y paso-a-paso son operaciones sobre el cursor.
 - **Aproximación de ticks:** dentro de una vela en formación, el motor expone sub-pasos pre-generados (ver §9.6) para que la vela "se construya" visualmente de forma realista y reproducible.
-- **Presupuesto:** 60 fps con ~120 velas visibles en un dispositivo de gama media-baja; ventana deslizante + decimación para series largas.
+- **Presupuesto:** 60 fps con ~120 velas visibles en un dispositivo de gama media-baja; ventana deslizante + decimación para series largas. Presupuesto normativo de render y densidad del HUD: `BEGINNER_HUD_LOCK` (documento 07).
 - **Sin librerías de charting de terceros** (TradingView, Victory, etc.): ninguna soporta el modelo playback-determinista + replay + colores propios sin pelear contra ella. El chart es core del producto y se construye sobre Skia.
 
 ---
@@ -437,7 +531,7 @@ La separación motor/UI hace que ~80% del valor de testing viva en suites puras 
 ## 14. Consideraciones de rendimiento
 
 - **Pre-generación como ventaja estructural:** el costo computacional pesado (generar el path) ocurre una vez al inicio de la sesión, con indicador de carga; el playback es solo avanzar un cursor y dibujar. No hay cómputo de mercado por frame.
-- **Presupuestos explícitos:** generación de path de ~500 velas < 1 s en gama baja; playback 60 fps (mínimo aceptable 30 fps en gama baja con degradación elegante); arranque en frío < 3 s; consumo de memoria del chart acotado por ventana deslizante.
+- **Presupuestos explícitos:** generación de path de ~500 velas < 1 s en gama baja; playback 60 fps (mínimo aceptable 30 fps en gama baja con degradación elegante — normativo en `BEGINNER_HUD_LOCK`, documento 07); arranque en frío < 3 s; consumo de memoria del chart acotado por ventana deslizante.
 - Render Skia fuera del ciclo de React: el avance del cursor y el crosshair no provocan re-render de árbol de componentes.
 - Estructuras compactas en el motor: arrays tipados/columnas para las series (no un objeto por vela en el hot path).
 - Velas históricas fuera de viewport: decimación para zoom-out; nunca se dibujan más velas de las visibles.

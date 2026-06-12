@@ -4,7 +4,7 @@
 **Autor / firma:** tsuloid
 **Idioma:** Español (LATAM)
 **Estado:** Documento de arquitectura — sin código, sin migraciones, sin pantallas, previo al desarrollo
-**Plataformas objetivo:** Android  15+ / iOS 20+ · Offline-first · Sin login · Sin cuenta en la nube
+**Plataformas objetivo:** Android 15+ / iOS 20+ (configuración verificable: `PLATFORM_TARGET_LOCK`, documento 08) · Offline-first · Sin login · Sin cuenta en la nube
 
 ---
 
@@ -63,7 +63,7 @@ Convenciones usadas en todas las tablas:
 | **Campos opcionales** | `educationalNotesEs` (peculiaridades que el alumno debe conocer: gaps de fin de semana en forex, volatilidad extrema en cripto), `unlockRequirement` (nivel/logro necesario para desbloquearlo) |
 | **Relaciones** | 1→N con `Instrument`, `ScenarioTemplate` |
 | **Persistencia** | Bundle (JSON estático versionado con la app). No se escribe en SQLite. |
-| **MVP** | ✅ (al menos forex y cripto según Bloque 4) |
+| **MVP** | ✅ Matriz cerrada de `MVP_MARKET_LOCK` (documento dueño: `12_mvp_scope.md`, §4): base `synthetic_training`, con exactamente 3 instrumentos jugables (`synthetic_fx`, `synthetic_stock`, `synthetic_crypto` con desbloqueo tardío). |
 | **Export** | ❌ Se referencia por `code`; el contenido viaja con la app. |
 
 ### 1.4 Instrument (Instrumento)
@@ -75,7 +75,7 @@ Convenciones usadas en todas las tablas:
 | **Campos opcionales** | `slippageProfileDefault`, `liquidityClass` (`alta`, `media`, `baja`), `educationalNotesEs`, `unlockRequirement` |
 | **Relaciones** | N→1 con `Market`; referenciado por `ScenarioTemplate`, `SeedRecord`, `SimulationSession`, `Order`, `Trade`, `Position` |
 | **Persistencia** | Bundle. |
-| **MVP** | ✅ (2–4 instrumentos bastan para el MVP) |
+| **MVP** | ✅ Exactamente 3 instrumentos jugables: `synthetic_fx`, `synthetic_stock` y `synthetic_crypto` (desbloqueo tardío) — `MVP_MARKET_LOCK` (documento dueño: `12_mvp_scope.md`, §4). |
 | **Export** | ❌ Se referencia por `symbol` + versión de catálogo. |
 
 ### 1.5 Candle (Vela) — Formato Universal de Vela
@@ -385,7 +385,7 @@ El registro granular de **todo lo que el usuario hizo y cuándo**, en tiempo sim
 | **Campos opcionales** | `rotationKey` (challenges semanales/mensuales futuros), `rewardAchievementId`, `xpReward`, `attemptsAllowedRanked` (normalmente 1 intento rankeado; reintentos como práctica no puntuada) |
 | **Relaciones** | 1→1 con `SeedRecord`; 1→N con `SimulationSession`, `RankingEntry`; 0..1 con `Achievement` |
 | **Persistencia** | Bundle (definiciones); el estado del usuario vive en sesiones y rankings. |
-| **MVP** | ✅ (3–5 challenges iniciales) |
+| **MVP** | ✅ Set cerrado de 6 challenges según `MVP_CONTENT_LOCK` (documento dueño: `12_mvp_scope.md`, §3): Supervivencia 50 velas · Riesgo de hierro · Sin indicadores · Paciencia · Stop obligatorio · Costos reales. Criterio de éxito del MVP: completar al menos 3 de los 6 (no es una cantidad implementable menor). |
 | **Export** | ❌ Definición; ✅ los resultados (sesiones + rankings). |
 
 ### 1.25 RankingEntry (Entrada de ranking)
@@ -622,7 +622,7 @@ Lo irreducible para lanzar (todo lo demás puede simplificarse o posponerse):
 |---|---|---|
 | 1 | `UserProfile` | Completo |
 | 2 | `LocalAppProfile` | Versiones + preferencias básicas |
-| 3 | `Market` / `Instrument` | 2 mercados, 2–4 instrumentos (bundle) |
+| 3 | `Market` / `Instrument` | Base `synthetic_training` + exactamente 3 instrumentos jugables (`synthetic_fx`, `synthetic_stock`, `synthetic_crypto`) según `MVP_MARKET_LOCK` (documento dueño: `12_mvp_scope.md`, §4) — bundle |
 | 4 | `Candle` (formato universal) | Completo — no se recorta: es el contrato del futuro |
 | 5 | `SeedRecord` | Completo — no se recorta: es la garantía de replay |
 | 6 | `GeneratedMarketPath` | Completo, con caché regenerable |
@@ -635,7 +635,7 @@ Lo irreducible para lanzar (todo lo demás puede simplificarse o posponerse):
 | 13 | `Evaluation` | Completa |
 | 14 | `TutorialProgress` + `Lesson` (bundle) | Módulos 1–N del currículo MVP |
 | 15 | `JournalEntry` | Plantilla guiada simple |
-| 16 | `Challenge` + `RankingEntry` | 3–5 challenges, ranking local |
+| 16 | `Challenge` + `RankingEntry` | Set cerrado de 6 challenges según `MVP_CONTENT_LOCK` (documento dueño: `12_mvp_scope.md`, §3); éxito MVP = completar al menos 3 de los 6; ranking local |
 | 17 | `Achievement` | Set inicial de disciplina/constancia |
 | 18 | `ExportedProgressFile` | Formato v1 completo |
 

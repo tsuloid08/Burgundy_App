@@ -110,7 +110,7 @@ Burgundy (raíz)
 | 4 | **Selección de mercado** | Elegir el tipo de mercado simulado (ej. divisas, índices, cripto simulado). | Tarjetas `#2E2E2E` con descripción de volatilidad y liquidez típicas en español claro. |
 | 5 | **Mapa de tutorial / ruta de aprendizaje** | Núcleo de la academia: progresión visual de niveles, lecciones y desbloqueos. | Nodos conectados; estados bloqueado/disponible/completado; XP y nivel visibles; estética de mapa de academia, no de juego infantil. |
 | 6 | **Pantalla de lección** | Enseñar un concepto con terminología real explicada en claro. | Texto + diagramas estáticos; glosario contextual (tocar un término abre su definición); micro-quiz de cierre. |
-| 7 | **Briefing de escenario** | Dar contexto antes de cada sesión: objetivo, reglas, capital inicial, semilla. | Objetivo de aprendizaje, condiciones del mercado, tipo de semilla (fija/aleatoria), mensaje de confianza sobre la generación previa del mercado. |
+| 7 | **Briefing de escenario** | Dar contexto antes de cada sesión: objetivo, reglas, capital inicial e identidad del escenario. | Objetivo de aprendizaje, condiciones del mercado, tipo de semilla (fija/aleatoria), mensaje de confianza sobre la generación previa del mercado. En tutorial/sandbox puede mostrarse la semilla o un identificador legible derivado; en desafíos el briefing muestra **solo el sello de equidad** (`pathHash`, `seedType`, `generatorVersion`, reglas del LCC), nunca la seed cruda — `SEED_PATH_REPLAY_EXPORT_LOCK` (documento dueño: `08_technical_architecture.md`, §8). |
 | 8 | **Simulador de trading** | Pantalla central de práctica. Ver sección 10 para prioridades de layout. | Gráfico de velas dominante + paneles colapsables. |
 | 9 | **Vista de gráfico** | Visualización de velas con colores propios (`#4A6D56` / `#802F3E`), zoom y desplazamiento táctil. | Crosshair con precio/tiempo; marcadores de entradas/salidas; marcador de replay si aplica. |
 | 10 | **Panel de orden** | Configurar y confirmar órdenes. | Compra/venta, tamaño, stop loss, take profit, % de riesgo, vista previa de risk/reward, spread, fees estimados, slippage estimado. |
@@ -256,6 +256,23 @@ Orden de prioridad visual de arriba hacia abajo, pensado para uso con una mano e
 
 **Confirmación de operación (obligatoria):** ningún trade se ejecuta sin un resumen previo que muestre: dirección, tamaño, riesgo en % y en dinero simulado, SL, TP, risk/reward, spread, fees y slippage estimados. En tutorial y desafíos no se puede desactivar; en sandbox el usuario puede activar "confirmación rápida" solo a partir de cierto nivel desbloqueado.
 
+### 4.1 Presupuesto de render y densidad por defecto (`BEGINNER_HUD_LOCK`)
+
+<!-- LOCK: BEGINNER_HUD_LOCK v1 — Documento dueño: 07_mobile_ux.md. Resuelve la mitad de render de AUD-013 (presupuesto de render y densidad por defecto del HUD del simulador). Los documentos 08, 12 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **BEGINNER_HUD_LOCK v1 — Presupuesto de render y densidad por defecto del HUD del simulador (cerrado).**
+>
+> **Presupuesto de render del simulador (MVP):**
+> - **Ventana deslizante de ~120 velas visibles** como techo de render; las velas fuera del viewport se deciman en zoom-out y nunca se dibujan completas.
+> - **Objetivo 60 fps** de playback en gama media; **fallback documentado a 30 fps** en gama baja, con degradación elegante: se reduce la frecuencia de actualización del crosshair y la animación de sub-ticks de la vela en formación. **Nunca se degradan** la exactitud de los datos, la ejecución de órdenes ni la detección de errores.
+> - Benchmark mínimo de aceptación: un dispositivo Android de gama media/baja (3–4 GB RAM, perfil LATAM) sostiene el playback a ≥30 fps con la ventana de ~120 velas.
+> - Los techos de generación (máximo de velas por sesión según horizonte y 4–8 sub-ticks por vela) pertenecen a `MVP_SANDBOX_LIMITS` (documento 12); este lock gobierna el render y el HUD.
+>
+> **Densidad por defecto del HUD (MVP, todos los modos):**
+> - Por defecto, el principiante ve únicamente: **chart + franja mínima de cuenta/riesgo + acción principal (Comprar/Vender) + controles de velocidad**.
+> - **Todos los paneles avanzados** (posiciones, calculadora de riesgo, journal rápido, cuenta extendida) están **colapsados por defecto** y se abren bajo demanda como bottom sheets o pestañas internas.
+> - Este lock fija únicamente el presupuesto de render y la densidad por defecto. La reorganización completa de densidad Beginner/Expanded (AUD-015, gravedad Media) queda explícitamente fuera de su alcance: aquí no se rediseñan pantallas.
+
 ---
 
 ## 5. Advertencias beginner-safe (sistema de alertas educativas)
@@ -282,7 +299,9 @@ Regla transversal: cada advertencia ignorada se registra y aparece en la **revis
 
 Requisitos obligatorios:
 
-1. **Visualización de semilla:** la semilla (o un identificador corto legible derivado de ella) es visible en el briefing, opcionalmente en la barra superior del simulador, y siempre en la evaluación final.
+1. **Visualización de semilla** — regida por `SEED_PATH_REPLAY_EXPORT_LOCK` (documento dueño: `08_technical_architecture.md`, §8), con dos regímenes distintos:
+   - **Tutorial / sandbox:** la semilla (o un identificador corto legible derivado de ella) es visible en el briefing, opcionalmente en la barra superior del simulador, y siempre en la evaluación final.
+   - **Desafíos:** antes del intento el briefing muestra **únicamente el sello de equidad**: `pathHash`, `seedType`, `generatorVersion` y las reglas del LCC — **nunca la seed cruda**. La seed cruda se revela solo al cerrar el intento (evaluación final). Si el usuario conocía la seed de antemano o repite con una seed conocida, el intento se marca `seed_known = true` y queda fuera del ranking principal de primer intento.
 2. **Botón "Repetir sesión" (replay):** disponible en la evaluación final y en la gestión de semillas.
 3. **Botón "Guardar semilla":** disponible en sandbox y en la evaluación final.
 4. **"Reiniciar mismo escenario":** misma semilla, decisiones desde cero (ver flujo 3.6).
@@ -314,7 +333,7 @@ Requisitos obligatorios:
 9. **Carga percibida:** ninguna espera sin indicador; la generación de escenario muestra progreso con el mensaje de confianza.
 10. **Confirmaciones destructivas:** cerrar posición, abandonar sesión, restablecer datos e importar progreso requieren confirmación explícita; restablecer e importar requieren doble paso.
 11. **Texto en español LATAM:** voseo neutro evitado; se usa "tú" estándar LATAM; sin jerga local de un solo país.
-12. **Densidad progresiva:** el principiante ve menos paneles; los paneles avanzados (margen, slippage detallado) aparecen según el nivel o el escenario lo requiera.
+12. **Densidad progresiva:** el principiante ve menos paneles; los paneles avanzados (margen, slippage detallado) aparecen según el nivel o el escenario lo requiera. La densidad por defecto del MVP y el presupuesto de render están cerrados por `BEGINNER_HUD_LOCK` (sección 4.1).
 
 ---
 

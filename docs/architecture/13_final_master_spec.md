@@ -88,7 +88,7 @@ Glosario base (regla de terminología real — término en inglés estándar + e
 |---|---|
 | 1 | Nombre de la app: **Burgundy**; proyecto firmado bajo el usuario **tsuloid** |
 | 2 | Solo en español, dirigida a LATAM |
-| 3 | App móvil propietaria: Android 15+ / iOS 20+ |
+| 3 | App móvil propietaria: Android 15+ / iOS 20+ (configuración verificable y acta de mapeo iOS: `PLATFORM_TARGET_LOCK`, documento 08) |
 | 4 | Sin login, sin cuenta en la nube |
 | 5 | Sin monetización, sin cursos, sin coach de IA |
 | 6 | Offline-first; progreso 100% local; export/import de archivo de progreso |
@@ -345,6 +345,7 @@ Cada estilo tiene su desafío con seed fija y métricas propias (tiempo en posic
 - **Layout del simulador (mobile-first, vertical, zona del pulgar):** gráfico de velas 50–60% de pantalla → barra superior compacta → franja de cuenta → botones Comprar/Vender (≥48dp, con spread visible) → panel de orden como bottom sheet con vista previa de risk/reward, spread, fees y slippage → controles de simulación → paneles colapsables. **Confirmación de operación obligatoria** con resumen completo antes de ejecutar.
 - **9 advertencias beginner-safe** (superficies #2E2E2E, texto #C9A050): riesgo alto, sin stop loss, leverage peligroso, entrada post-volatilidad, señal sin ajustar, overtrading, revenge trading, mover el stop, operar en alta volatilidad. Cada advertencia ignorada alimenta la revisión de errores.
 - **UX de seeds (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08):** en desafíos, el briefing muestra el **sello de equidad** (`pathHash` + `seedType` + `generatorVersion`), nunca la seed cruda, que se revela en la evaluación al cerrar el intento; en tutorial/sandbox la seed puede ser visible. Iconografía consistente 🔒 "Semilla fija" vs 🎲 "Semilla aleatoria"; badge "REPLAY" persistente; mensaje de confianza anti-manipulación en cada briefing.
+- **HUD beginner-safe (`BEGINNER_HUD_LOCK`, documento 07):** densidad por defecto del simulador = chart + franja mínima de cuenta/riesgo + acción principal + controles de velocidad, con todos los paneles avanzados colapsados; presupuesto de render = ventana deslizante ~120 velas, 60 fps objetivo, fallback 30 fps documentado en gama baja (la degradación nunca toca exactitud de datos ni ejecución).
 - **Accesibilidad:** contraste WCAG AA, distinción no-solo-color en velas y P/L (▲/▼, +/−), escalado de fuente +30%, lectores de pantalla, reducción de movimiento, objetivos táctiles ≥44pt/48dp.
 - Estética prohibida: verdes/rojos estridentes, negro puro, visuales de casino, UI infantil, "hazte rico".
 
@@ -356,15 +357,19 @@ Cada estilo tiene su desafío con seed fija y métricas propias (tiempo en posic
 
 | Capa | Tecnología |
 |---|---|
-| Framework móvil | React Native (Nueva Arquitectura: Fabric + TurboModules), Android 15+ / iOS 20+ |
+| Framework móvil | React Native 0.83 vía Expo SDK 55 (Nueva Arquitectura: Fabric + TurboModules) — matriz cerrada por `TECH_STACK_LOCK` (documento 08) |
+| Plataformas | Android 15+ (`minSdk 35`, target/compile 36) · iOS 20+ (→ deployment target 26.0; acta de mapeo en `PLATFORM_TARGET_LOCK`, documento 08) |
 | Lenguaje | TypeScript estricto en app y motor |
 | Runtime JS | Hermes |
 | Render de velas | `@shopify/react-native-skia` (canvas GPU); sin librerías de charting de terceros |
-| Animaciones/gestos | Reanimated + Gesture Handler |
+| Animaciones/gestos | Reanimated 4 (+ worklets) + Gesture Handler |
 | Estado | Zustand (UI) + el motor como fuente de verdad de la simulación |
-| Persistencia | SQLite (WAL) + MMKV (preferencias) |
+| Persistencia | `expo-sqlite` (WAL) + MMKV (preferencias) |
 | Export/import | JSON versionado + gzip + checksum SHA-256, extensión `.burgundy`, vía share sheet del SO |
-| Tests | Vitest/Jest (motor), RN Testing Library (UI), Maestro/Detox (E2E) |
+| Tests | Vitest (motor), jest-expo + RN Testing Library (UI), Maestro/Detox (E2E) |
+| Entorno de desarrollo | Windows + PowerShell — comandos canónicos y reglas en `WINDOWS_POWERSHELL_WORKFLOW` (documento 08) |
+
+Flujo cerrado: Expo managed + dev build (`expo-dev-client`), sin bare; prebuild solo cuando se requiera; `npx expo-doctor@latest` obligatorio tras cada instalación; EAS Build opcional, no requerido para el MVP local.
 
 Alternativas evaluadas y descartadas: Flutter (segunda opción válida; menos talento JS/TS en LATAM), nativo dual (duplica el motor determinista — riesgo inaceptable), Unity/Godot (identidad de juego, UI de academia costosa), WebView (rendimiento y storage frágiles).
 
@@ -496,6 +501,10 @@ Tesis que el MVP debe demostrar:
 | B | `DETERMINISM_LOCK_V1` — PCG32, substreams, enteros escalados, serialización canónica, corpus dorado | `08_technical_architecture.md` |
 | B | `SCORING_V1_LOCK` — `scoring_v1` ejecutable, thresholds, predicados, casos dorados | `11_evaluation_scoring.md` |
 | B | `BURGUNDY_FILE_FORMAT_V1` — formato `.burgundy` v1 e import transaccional | `09_data_models.md` |
+| C | `TECH_STACK_LOCK` — matriz cerrada de stack (Expo SDK 55 / RN 0.83) y flujo de build | `08_technical_architecture.md` |
+| C | `PLATFORM_TARGET_LOCK` — Android 15+ / iOS 20+ verificables; acta de mapeo iOS → 26.0 | `08_technical_architecture.md` |
+| C | `WINDOWS_POWERSHELL_WORKFLOW` — comandos y reglas de desarrollo en Windows/PowerShell | `08_technical_architecture.md` |
+| C | `BEGINNER_HUD_LOCK` — presupuesto de render y densidad por defecto del HUD | `07_mobile_ux.md` |
 
 Ante contradicción entre cualquier sección de este documento (o de los documentos 01–12) y un lock, gana el lock.
 
@@ -529,7 +538,7 @@ Lógica del roadmap en una línea:
 | Paths procedurales poco creíbles ("mercado de juguete") | Alto: rompe la inmersión educativa | Plantillas calibradas, clusters de volatilidad, validación estadística de los paths |
 | Determinismo roto entre plataformas | Alto: replays y rankings inválidos | PRNG entero propio, enteros escalados, corpus dorado de hashes en CI cross-runtime |
 | Percepción de juego de azar | Alto: contradice la identidad | Score 100% por LCC, feedback con "por qué", tono serio, anti-patrón casino en reinicio |
-| Rendimiento del chart en gama baja LATAM | Medio | Skia GPU, ventana deslizante, presupuesto explícito (60 fps / ~120 velas), pruebas en hardware real |
+| Rendimiento del chart en gama baja LATAM | Medio | Skia GPU, ventana deslizante, presupuesto explícito (60 fps / ~120 velas, fallback 30 fps — `BEGINNER_HUD_LOCK`, documento 07), pruebas en hardware real |
 | Corrupción de datos locales o del export | Medio | SQLite WAL, transacciones, checksums, backup rotativo, validación estricta de import |
 | Alcance creciente ("¿y si agregamos margen?") | Medio: retrasa el MVP | Este documento y el 12 son el contrato de alcance; todo lo nuevo va a fases |
 | Sobrecarga de texto educativo | Medio | Lecciones cortas, una idea por lección, simulación antes que teoría |
