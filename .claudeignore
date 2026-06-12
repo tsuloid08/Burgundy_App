@@ -1,0 +1,45 @@
+```gitignore
+# Dependencies
+node_modules/
+
+# Git internals
+.git/
+
+# Expo / React Native generated cache
+.expo/
+.expo-shared/
+
+# Build outputs
+dist/
+build/
+web-build/
+coverage/
+
+# Native generated/build folders
+ios/build/
+android/build/
+android/app/build/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+.tmp/
+temp/
+.cache/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Heavy raw assets Claude should not scan unless explicitly requested
+assets/raw/
+assets/videos/
+assets/datasets/
+```
