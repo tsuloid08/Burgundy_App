@@ -39,6 +39,8 @@ Componentes de todo LCC:
 
 El LCC es la "rúbrica" del escenario. El evaluador de Burgundy compara el log de decisiones del usuario contra el LCC, nunca contra "¿ganaste plata?".
 
+**Fórmula estándar de redacción (AUD-017):** toda condición garantizada de un escenario se redacta como *"el path ya contiene X condición; la consecuencia depende de la ejecución"*. El LCC fuerza contexto de aprendizaje (condiciones pre-generadas, trampas, criterios y evaluación), nunca el resultado post-trade: el path se genera completo antes de la decisión del usuario, no se altera después, y la evaluación juzga proceso, riesgo y decisión — no solo P/L.
+
 ---
 
 ## 2. Anatomía de un escenario
@@ -431,14 +433,14 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Velocidad recomendada** | Media |
 | **Setup** | Cuenta pequeña (100 USD). El panel permite elegir apalancamiento libremente. El path: movimiento normal con una oscilación intermedia de ~1.5% en contra antes de resolverse. |
 | **Tarea del usuario** | Tomar un trade direccional eligiendo el apalancamiento. La dirección "correcta" es alcanzable; la pregunta del escenario es el tamaño. |
-| **Learning Context Contract** | Objetivo: vivir cómo el apalancamiento convierte una oscilación normal en una liquidación. Garantía: la oscilación intermedia liquida toda posición con leverage efectivo >1:60 aproximadamente, aunque la dirección final fuera correcta. Esto está sellado en el path. |
+| **Learning Context Contract** | Objetivo: vivir cómo el apalancamiento convierte una oscilación normal en una liquidación. Garantía: el path ya contiene una oscilación intermedia de ~1.5% en contra, sellada antes de la decisión del usuario; la consecuencia depende de la ejecución — por matemática de margen, una posición con leverage efectivo >1:60 aproximadamente no la sobrevive, aunque la dirección final fuera correcta. |
 | **Template** | `TPL_TREND` con oscilación calibrada |
-| **Tipo de seed** | **Fija (lección)** — la oscilación debe calibrarse exactamente contra los niveles de liquidación. |
+| **Tipo de seed** | **Fija (lección)** — la magnitud de la oscilación (~1.5%) debe ser exacta y reproducible para que la lección de margen sea idéntica para todos; el path no conoce ni ajusta nada del usuario. |
 | **Path de mercado** | Pre-generado. La oscilación NO busca al usuario: está escrita; es la matemática del leverage la que decide quién sobrevive. |
 | **Trampa oculta** | La interfaz "ofrece" el apalancamiento alto sin advertencias (como un broker real). La oscilación intermedia es la trampa: tener razón en la dirección no salva al sobreapalancado. |
 | **Error esperado** | Elegir leverage máximo "porque la cuenta es chica y quiero que rinda"; no calcular el precio de liquidación; confundir leverage alto con ambición legítima. |
 | **Decisiones buenas (aunque pierdan)** | Leverage moderado con riesgo ≤2% y stop propio antes del nivel de liquidación; calcular cuánto movimiento en contra soporta la posición antes de entrar. |
-| **Decisiones malas (aunque ganen)** | No existe "ganar" sobreapalancado en este path (la oscilación liquida primero) — pero si el usuario usa leverage alto con tamaño minúsculo y sobrevive técnicamente, el evaluador marca igual el hábito. |
+| **Decisiones malas (aunque ganen)** | En este path no existe "ganar" sobreapalancado (por matemática de margen, la oscilación ya contenida en el path liquida primero) — pero si el usuario usa leverage alto con tamaño minúsculo y sobrevive técnicamente, el evaluador marca igual el hábito. |
 | **Condición de éxito** | Sobrevivir la oscilación: leverage efectivo y stop tales que la posición aguanta el 1.5% en contra. |
 | **Condición de fracaso** | Liquidación de la posición; pérdida > 50% del capital en un trade. |
 | **Métricas** | Leverage efectivo, distancia al precio de liquidación al entrar, riesgo real por trade. |
@@ -459,7 +461,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Nivel de usuario** | 6 |
 | **Tipo de mercado** | Acción sintética intradía *(reasignado desde índice sintético: el índice es post-MVP según `MVP_MARKET_LOCK`, documento 12)* |
 | **Velocidad recomendada** | Media; **pausa deshabilitada en la ventana post-pérdida** (la presión emocional es parte del diseño) |
-| **Setup** | El path está diseñado para que el primer setup razonable de la sesión falle (pérdida limpia con stop). Inmediatamente después aparecen 2–3 "oportunidades" de calidad mediocre, tentadoras, antes de que llegue un segundo setup genuino más tarde. |
+| **Setup** | El path ya contiene un primer setup razonable que falla (pérdida limpia con stop). Inmediatamente después aparecen 2–3 "oportunidades" de calidad mediocre, tentadoras, antes de que llegue un segundo setup genuino más tarde. |
 | **Tarea del usuario** | Operar la sesión completa. El verdadero examen empieza después de la primera pérdida. |
 | **Learning Context Contract** | Objetivo: reconocer y resistir el impulso de recuperar la pérdida inmediatamente. Garantía: la primera pérdida ocurre ante buen proceso (no es culpa del usuario); los anzuelos post-pérdida tienen estructura deficiente; el setup genuino tardío existe y es identificable. |
 | **Template** | `TPL_TRAP_SEQUENCE` (variante post-pérdida) |
@@ -556,7 +558,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Tipo de seed** | **Fija por temporada de challenge** — todos los participantes de la temporada juegan exactamente el mismo mercado; el ranking de sesión es comparable de forma justa. |
 | **Comportamiento de seed** | Cada "temporada" del challenge tiene su seed sellada y versionada. Replay usa la seed de la temporada jugada. |
 | **Path de mercado** | Pre-generado completo (los 90 días) antes del día 1. |
-| **Trampa oculta** | La hostilidad sostenida misma: el path está calibrado para que la estrategia "ganar mucho rápido" tenga probabilidad altísima de romper el límite de drawdown. Sobrevivir exige operar poco y bien. |
+| **Trampa oculta** | La hostilidad sostenida misma: el path ya contiene pocos setups de calidad y fricción alta; con esa estructura, la estrategia "ganar mucho rápido" rompe el límite de drawdown en casi cualquier ejecución. Sobrevivir exige operar poco y bien. |
 | **Error esperado** | Intentar "ganar el challenge" maximizando retorno en vez de supervivencia; relajar la disciplina en las semanas tranquilas. |
 | **Decisiones buenas (aunque pierdan)** | Semanas sin operar cuando no hay setups; riesgo constante ≤1.5%; reducir exposición ante los eventos reconocibles. |
 | **Decisiones malas (aunque ganen)** | Sobrevivir con sustos de drawdown del 20% por apuestas grandes — el score de proceso lo penaliza aunque haya "pasado". |
@@ -642,7 +644,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Velocidad recomendada** | Alta |
 | **Setup** | El usuario arranca con la cuenta YA en drawdown: 850 USD de un máximo histórico de 1.000 (−15%). El mercado del mes es difícil: pocos setups, mucha tentación. **Regla dura: si el drawdown total desde el máximo histórico llega a 25% (cuenta en 750), el challenge termina.** |
 | **Tarea del usuario** | Gestionar un mes empezando desde la pérdida: recuperar lo que el mercado permita SIN profundizar la caída. El objetivo explícito no es volver a 1.000: es no llegar a 750. |
-| **Learning Context Contract** | Objetivo: aprender a operar en drawdown — la situación psicológica más peligrosa del trading — reduciendo riesgo en vez de aumentarlo. Garantía: el path ofrece recuperación parcial solo a quien opera con riesgo reducido; los setups "para recuperarlo todo de un golpe" son anzuelos. |
+| **Learning Context Contract** | Objetivo: aprender a operar en drawdown — la situación psicológica más peligrosa del trading — reduciendo riesgo en vez de aumentarlo. Garantía: el path ya contiene una recuperación parcial de magnitud limitada y varios anzuelos de "recuperación total"; capturar la recuperación sin romper el límite depende de ejecutar con riesgo reducido. |
 | **Template** | `TPL_TRAP_SEQUENCE` (variante drawdown) sobre `TPL_GRIND` corto |
 | **Tipo de seed** | Fija por temporada (ranking); aleatoria en práctica. |
 | **Path de mercado** | Pre-generado completo. |

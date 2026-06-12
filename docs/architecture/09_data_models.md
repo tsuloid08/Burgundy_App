@@ -30,6 +30,8 @@ Convenciones usadas en todas las tablas:
 
 ## 1. Catálogo de modelos
 
+> **Alcance de implementación (AUD-016).** Este catálogo documenta el diseño completo (29 modelos) como contrato de referencia; **no es la lista de implementación**. Lo que el MVP implementa físicamente es exclusivamente `mvp_schema_v1` (§3.10, 18 modelos); los modelos y campos de fases futuras viven en `future_schema_notes` (§3.10 bis) con carácter de ADR, sin tablas ni migraciones iniciales.
+
 ### 1.1 UserProfile (Perfil del usuario)
 
 | Aspecto | Detalle |
@@ -614,9 +616,11 @@ Decirlas de frente, porque sin login el respaldo es responsabilidad compartida c
 | Doble escritura concurrente | Una sola conexión de escritura serializada a SQLite; el motor de simulación no escribe directamente — entrega snapshots a la capa de persistencia |
 | Corrupción silenciosa de paths | `pathHash` en `SeedRecord` verificado al cargar un path materializado; si no coincide, se regenera desde el seed |
 
-### 3.10 Modelo de datos mínimo del MVP
+### 3.10 `mvp_schema_v1` — Esquema físico del MVP (vinculante)
 
-Lo irreducible para lanzar (todo lo demás puede simplificarse o posponerse):
+<!-- AUD-016: separación mvp_schema_v1 / future_schema_notes. No crea modelos nuevos, no cambia locks ni alcance MVP; solo marca qué se implementa y qué queda como ADR. -->
+
+Esta sección es el **esquema físico vinculante del MVP**: Prompt 14 implementa exactamente estos 18 modelos (tablas SQLite, claves MMKV, JSON de bundle y validadores) y ninguno más. Lo irreducible para lanzar (todo lo demás puede simplificarse o posponerse):
 
 | # | Modelo | Forma MVP |
 |---|---|---|
@@ -639,7 +643,26 @@ Lo irreducible para lanzar (todo lo demás puede simplificarse o posponerse):
 | 17 | `Achievement` | Set inicial de disciplina/constancia |
 | 18 | `ExportedProgressFile` | Formato v1 completo |
 
-Quedan **fuera del MVP**: `TickEvent` materializado (se regenera), sistema completo de `Signal` (solo lecciones del módulo de señales), `HistoricalSourceMetadata`, `HistoricalPatternTemplate`, merge de imports, cifrado de export, repaso espaciado.
+Los locks que gobiernan este esquema permanecen intactos y se aplican desde aquí: `MVP_MARKET_LOCK`, `MVP_CONTENT_LOCK` (documento 12), `SEED_PATH_REPLAY_EXPORT_LOCK`, `DETERMINISM_LOCK_V1`, `PLATFORM_TARGET_LOCK` (documento 08) y `BURGUNDY_FILE_FORMAT_V1` (§3.6 bis).
+
+### 3.10 bis — `future_schema_notes` (ADR: modelos y campos de fases futuras)
+
+Todo lo siguiente queda registrado como **decisión de arquitectura (ADR)** para no romper el esquema cuando llegue su fase. **Nada de esta lista genera tablas, migraciones, columnas físicas ni código en el MVP.** Sus fichas del catálogo (§1) se conservan como definición de contrato, no como lista de implementación.
+
+| Elemento futuro | Ficha de referencia | Estado en MVP |
+|---|---|---|
+| `TickEvent` materializado | §1.6 | Los micro-movimientos se regeneran deterministamente desde el seed; sin tabla ni almacenamiento. |
+| Sistema completo de `Signal` (catálogo amplio de señales, variantes avanzadas) | §1.19 | Solo las señales empaquetadas de las lecciones del módulo de señales (`MVP_CONTENT_LOCK`); la respuesta del usuario se guarda dentro de la sesión, sin sistema general de señales. |
+| `sourceType` históricos (`historical`, `historical_inspired`) | §1.5, §1.17 | Valores reservados del enum; ningún flujo del MVP los produce. |
+| `HistoricalSourceMetadata` | §1.28 | Contrato reservado; cero implementación. |
+| `HistoricalPatternTemplate` | §1.29 | Contrato reservado; cero implementación. |
+| `Achievement` avanzado (criterios compuestos, rotaciones, tiers completos) | §1.26 | El MVP implementa solo el set inicial de disciplina/constancia; el resto del diseño es ADR. |
+| Rankings detallados (desgloses adicionales por mercado/horizonte/dificultad, temporadas) | §1.25 | El MVP implementa el ranking local según `MVP_CONTENT_LOCK` y `MVP_SANDBOX_LIMITS` (personal best + top-N por scope); los desgloses adicionales son ADR. |
+| Merge selectivo de imports | §3.5 | MVP: reemplazo explícito con backup, sin merge. |
+| Cifrado del export | §3.6 | Reevaluable post-MVP. |
+| Repaso espaciado (`conceptReviewDueAt`) | §1.13 | Campo opcional reservado; sin lógica en MVP. |
+
+Regla de lectura para Prompt 14: si un modelo o campo no aparece en `mvp_schema_v1` (§3.10), **no se implementa**, aunque su ficha exista en §1.
 
 ### 3.11 Qué seeds y paths deben incluirse en el archivo de export
 

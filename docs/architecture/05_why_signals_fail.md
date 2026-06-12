@@ -140,11 +140,13 @@ Cada lección y escenario declara:
 | `salida_honorable` | Qué ejecución correcta (incluyendo NO entrar) produce un buen resultado educativo |
 | `criterio_de_éxito` | Cómo se mide el aprendizaje (métricas de proceso, no P/L) |
 
+**Fórmula estándar de redacción (AUD-017):** todo `contexto_garantizado` se redacta como *"el path ya contiene X condición; la consecuencia depende de la ejecución"*. El LCC fuerza el contexto de aprendizaje (condiciones pre-generadas, trampas, criterios y evaluación), nunca el resultado post-trade: el path se genera completo antes de la decisión del usuario y no se altera después. La evaluación juzga proceso, riesgo y decisión, no solo P/L.
+
 ### 4.2 LCC por lección
 
 **LCC-WSF-L1 — "La misma señal, dos destinos"**
 - Concepto objetivo: la señal es idéntica; la ejecución es lo que difiere.
-- Contexto garantizado: camino de mercado fijo donde la señal alcanza el TP **solo si** la entrada ocurre dentro de la ventana temprana y el stop respeta la invalidación original. El camino incluye un retroceso intermedio que toca la zona donde entraría un seguidor tardío.
+- Contexto garantizado: el path ya contiene un avance que alcanza el TP de la señal y un retroceso intermedio que toca la zona donde entraría un seguidor tardío. Que la operación capture ese TP depende de la ejecución: la entrada dentro de la ventana temprana con stop en la invalidación original sobrevive el retroceso; la entrada tardía con stop apretado es barrida antes.
 - Libertad del usuario: momento de entrada, tamaño, stop, salida.
 - Resultado NO garantizado: entrar tarde o con stop apretado convierte la misma señal en pérdida.
 - Trampa pedagógica: el retroceso intermedio barre los stops de quien entró tarde con stop pegado.
@@ -171,7 +173,7 @@ Cada lección y escenario declara:
 
 **LCC-WSF-L4 — "El apalancamiento no se copia"**
 - Concepto objetivo: la misma señal con 1x es manejable; con 20x liquida la cuenta antes de que la idea madure.
-- Contexto garantizado: camino con drawdown intermedio de -4.5% desde la entrada antes de girar hacia el TP.
+- Contexto garantizado: el path ya contiene un drawdown intermedio de -4.5% desde el nivel de entrada de la señal antes de girar hacia el TP; la consecuencia (sobrevivirlo o ser liquidado por matemática de margen) depende del leverage y el tamaño elegidos.
 - Libertad del usuario: elegir leverage (1x a 50x) y tamaño.
 - Resultado NO garantizado: con 20x, el drawdown de -4.5% excede el margen → liquidación forzosa **antes** del giro. Con 1x–3x, el drawdown es incómodo pero sobrevivible.
 - Trampa pedagógica: la señal del "proveedor" menciona que él usa 20x.
@@ -307,7 +309,7 @@ Cada escenario define: template, LCC, comportamiento de seed, comportamiento del
 | **Template** | `WSF-E2-leverage-mismatch`. |
 | **LCC** | LCC-WSF-L4. |
 | **Seed** | Fija: `WSF-T-L4-S1`. |
-| **Camino** | Entrada → drawdown sostenido de -4.5% (varias velas bajistas `#802F3E` con rebotes débiles) → giro → TP a +6%. Todo pre-generado. |
+| **Camino** | El path ya contiene, desde el nivel de entrada de la señal: drawdown sostenido de -4.5% (varias velas bajistas `#802F3E` con rebotes débiles) → giro → TP a +6%. Todo pre-generado antes de la decisión del usuario; liquidación o supervivencia depende del leverage elegido. |
 | **Señal** | Incluye la frase trampa: "yo entro con 20x 😎". Niveles correctos. |
 | **Buenas decisiones** | Leverage ≤ 3x; riesgo por operación ≤ 2%; SL en invalidación; tolerar el drawdown dentro del plan. |
 | **Malas decisiones** | Copiar el 20x; no calcular el precio de liquidación; promediar en contra para "bajar el precio medio". |
