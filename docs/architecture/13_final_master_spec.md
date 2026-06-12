@@ -158,7 +158,7 @@ Regla clave: **el contrato describe el contexto; nunca prescribe el resultado de
 | Histórico-inspirada (futura) | Escenarios calibrados con estadísticas de episodios reales | Realismo histórico sin requerir el dataset |
 | Replay histórico exacto (futuro) | Reproducir datos reales | Referencia dataset + rango de fechas |
 
-Reglas técnicas: PRNG entero propio (familia PCG32/xoshiro), sin `Math.random`, sin reloj real ni entropía externa; streams de sub-seeds independientes por subsistema (régimen, velas, ticks, eventos, spread); hash SHA-256 del path sellado antes de iniciar la sesión.
+Reglas técnicas (cerradas por **`DETERMINISM_LOCK_V1`**, documento 08): PRNG = **PCG32** (decisión cerrada, sin alternativas), seed de 64 bits sin signo, sin `Math.random`, sin reloj real ni entropía externa; streams de sub-seeds con índices fijos por subsistema (régimen, velas, sub-ticks, eventos, spread, slippage); precios en enteros escalados (`priceScale` por instrumento); redondeo half-even; hash SHA-256 de la serialización canónica del path sellado antes de iniciar la sesión; corpus dorado de hashes verificado en CI.
 
 Cada simulación almacena: seed y tipo de seed, versión del generador, ID de plantilla, ID del LCC, mercado e instrumento, dificultad, horizonte temporal, perfiles de volatilidad/spread/liquidez, secuencia de regímenes, calendario de eventos, hash del path, decision log del usuario, resultado de evaluación y metadatos de replay. Todo viaja en el archivo de export.
 
@@ -180,13 +180,15 @@ Burgundy está **preparada para datos históricos sin depender de ellos**:
 
 | Orden | Mercado | ¿MVP? | Lección única que enseña |
 |---|---|---|---|
-| 1 | Mercados sintéticos educativos | ✅ Base del MVP | Mecánica pura sin sesgo de activo (velas, órdenes, stop, riesgo, P/L) |
-| 2 | Acciones (stocks) sintéticas | ✅ | Horarios de mercado, gaps, soporte/resistencia, shocks tipo earnings |
-| 3 | Índices sintéticos | ✅ | Pensamiento macro, tendencia persistente, "sube por la escalera, baja por el ascensor" |
-| 4 | Forex sintético | ✅ | Sesiones (Asia/Londres/NY), spread variable, pips, leverage |
-| 5 | Cripto sintética | ✅ (desbloqueo tardío) | Volatilidad extrema, FOMO, liquidaciones, fin de semana ilíquido |
+| 1 | Mercados sintéticos educativos | ✅ Base del MVP (`synthetic_training`) | Mecánica pura sin sesgo de activo (velas, órdenes, stop, riesgo, P/L) |
+| 2 | Acciones (stocks) sintéticas | ✅ (`synthetic_stock`) | Horarios de mercado, gaps, soporte/resistencia, shocks tipo earnings |
+| 3 | Índices sintéticos | ⚠️ Post-MVP temprano | Pensamiento macro, tendencia persistente, "sube por la escalera, baja por el ascensor" |
+| 4 | Forex sintético | ✅ (`synthetic_fx`) | Sesiones (Asia/Londres/NY), spread variable, pips; leverage solo conceptual en MVP |
+| 5 | Cripto sintética | ✅ (`synthetic_crypto`, desbloqueo tardío) | Volatilidad extrema, FOMO, liquidaciones, fin de semana ilíquido |
 | 6 | Materias primas (commodities) | ⚠️ Post-MVP temprano | Shocks externos y narrativas de oferta/demanda |
 | 7 | Futuros | ❌ Futuro (si es viable) | Margen, tamaño de contrato, tick value, liquidación profesional |
+
+> Matriz cerrada por **`MVP_MARKET_LOCK`** (documento 12, sección 4): base sintética + 3 instrumentos jugables, índices post-MVP. Ante contradicción, gana el lock.
 
 Decisión pedagógica central: el orden **invierte el camino típico del principiante LATAM** — cripto y leverage alto llegan al final, como logro de disciplina, no como punto de partida. Todos los instrumentos del MVP son **ficticios pero verosímiles** (nunca tickers reales), generados por un único motor parametrizado por perfil de mercado.
 
@@ -204,9 +206,9 @@ Elementos clave:
 
 - **Reloj de simulación** desacoplado del reloj real: pausa, tiempo real, x2/x3/x5/x10, avance vela a vela; la velocidad nunca cambia los datos, solo el ritmo de revelado.
 - **Regímenes base:** tendencia alcista/bajista, rango, breakout, fakeout, reversión, shock de volatilidad, mercado lento/ilíquido. La plantilla define la secuencia; la seed define el detalle.
-- **Sub-ticks intra-vela (4–16 por vela)** pregenerados y deterministas: SL/TP, órdenes pendientes y liquidaciones se evalúan a nivel de sub-tick, nunca solo al cierre de vela.
+- **Sub-ticks intra-vela (4–8 por vela en MVP — `MVP_SANDBOX_LIMITS` y `DETERMINISM_LOCK_V1`)** pregenerados y deterministas: SL/TP, órdenes pendientes y liquidaciones se evalúan a nivel de sub-tick, nunca solo al cierre de vela.
 - **Generación procedural por regímenes** con clusters de volatilidad, mechas, pullbacks, falsas salidas y ruido realista (anti-"mercado de juguete").
-- **Horizonte largo** (3/6 meses en MVP; 1–2 años post-MVP) por compresión en marcos mayores con checkpoints de decisión.
+- **Horizonte largo: post-MVP.** El MVP limita los horizontes a Intradía y 1 semana (`MVP_SANDBOX_LIMITS`, documento 12, sección 7); los horizontes de 1 mes a 2 años por compresión en marcos mayores con checkpoints de decisión llegan en fases posteriores.
 
 Enfoque de datos elegido para el MVP: **escenarios educativos prediseñados + generación procedural basada en regímenes + seeds deterministas.** Random walk puro: rechazado. Histórico: futuro.
 
@@ -223,7 +225,7 @@ Enfoque de datos elegido para el MVP: **escenarios educativos prediseñados + ge
 | **Gaps** | En aperturas de sesión, eventos y fines de semana simulados; tamaño y dirección decididos en la generación, jamás en reacción al usuario |
 | **Liquidez** | Perfil continuo por sesión; liquidez baja ⇒ spread más amplio, slippage mayor, ejecución parcial conceptual; cae alrededor de shocks |
 | **Eventos y shocks** | Calendario pregenerado (eventos anunciados y sorpresa) con dirección y magnitud decididas por la seed; nunca inyectados en reacción a la posición del usuario |
-| **Leverage y liquidación** | Margen simulado; la liquidación es matemática de margen, no castigo; reset educativo al quemar la cuenta |
+| **Leverage y liquidación** | En MVP: leverage 1x en toda mecánica jugable; la única liquidación existente es la del escenario educativo de sobreapalancamiento, con parámetros fijos empaquetados (`LEVERAGE_MVP_LIMITS`, documento 12, sección 5). El margen simulado general — donde la liquidación es matemática de margen, no castigo — llega en Fase 5. Reset educativo al quemar la cuenta en todos los casos |
 
 ---
 
@@ -231,18 +233,18 @@ Enfoque de datos elegido para el MVP: **escenarios educativos prediseñados + ge
 
 **6 niveles, 29 lecciones**, de cero absoluto a avanzado, sin saltos (documento 02):
 
-| Nivel | Etapa | Tema central | Lecciones | MVP |
+| Nivel | Etapa | Tema central | Lecciones | Relación con el MVP |
 |---|---|---|---|---|
-| 1 | Fundamentos del mercado | Mercado, precio, vela, long y short | 4 | ✅ |
-| 2 | Supervivencia y riesgo | Riesgo, stop loss, take profit, sizing, risk/reward, señales | 6 | ✅ (corazón del producto) |
-| 3 | Estructura de mercado | Soportes/resistencias, trendlines, HH/LL, volumen | 4 | ✅ |
-| 4 | Indicadores y patrones | MA, RSI, MACD, breakouts, pullbacks | 5 | ⚠️ Parcial (4.4 y 4.5 sí; 4.1–4.3 si los recursos lo permiten) |
+| 1 | Fundamentos del mercado | Mercado, precio, vela, long y short | 4 | Conceptos empaquetados en M1 |
+| 2 | Supervivencia y riesgo | Riesgo, stop loss, take profit, sizing, risk/reward, señales | 6 | Conceptos empaquetados en M2/M3 (corazón del producto) |
+| 3 | Estructura de mercado | Soportes/resistencias, trendlines, HH/LL, volumen | 4 | Conceptos esenciales en M1/M4 |
+| 4 | Indicadores y patrones | MA, RSI, MACD, breakouts, pullbacks | 5 | Solo las trampas de 4.4/4.5 vía escenarios MVP; 4.1–4.3 post-MVP (cerrado) |
 | 5 | Estilos de trading | Trend-following, mean reversion, scalping, day, swing, news | 5 | ❌ Post-MVP |
 | 6 | Maestría y proceso | SMC, liquidez, backtesting, journaling, psicología | 5 | ❌ Post-MVP |
 
 Reglas de orden no negociables: el riesgo se enseña antes que la estrategia; nada de indicadores antes de completar estructura; SMC y conceptos de liquidez solo después de fundamentos completos (incluso en modo libre — única excepción al modo libre); la psicología se detecta desde el Nivel 2 y se consolida al final.
 
-El MVP empaqueta esto en **5 módulos / 15 lecciones cortas** (M1 mercado, M2 costos invisibles, M3 riesgo primero, M4 disciplina y proceso, M5 anti-señales), cada una con explicación + mini-simulación con seed fija + quiz + registro de errores.
+El MVP empaqueta esto en **5 módulos / 15 lecciones cortas** (M1 mercado, M2 costos invisibles, M3 riesgo primero, M4 disciplina y proceso, M5 anti-señales), cada una con explicación + mini-simulación con seed fija + quiz + registro de errores. Los IDs canónicos y el mapeo están cerrados por **`MVP_CONTENT_LOCK`** (documento 12, sección 3); ninguna lección del currículo de 29 se implementa individualmente en el MVP.
 
 ---
 
@@ -263,17 +265,17 @@ Práctica libre con configuración sellada al generar el path:
 
 | Opción | Valores |
 |---|---|
-| Mercado | Sintéticos del MVP (forex, índice, cripto, acción) |
+| Mercado | Sintéticos del MVP según `MVP_MARKET_LOCK` (forex, acción, cripto; índice post-MVP) |
 | Capital inicial | Presets LATAM-realistas: 100, 500, 1.000, 5.000, 10.000, 100.000 |
 | Dificultad | Iniciación, Estándar, Avanzada, Hostil |
-| Horizonte | Intradía, 1 semana, 1 mes, 3 meses, 6 meses, 1 año, 2 años |
+| Horizonte | MVP: Intradía, 1 semana (`MVP_SANDBOX_LIMITS`). Post-MVP (Fase 3+): 1 mes, 3 meses, 6 meses, 1 año, 2 años |
 | Velocidad | Pausa, 1x, 2x, 5x, 10x, salto de vela/checkpoint |
 | Indicadores | Activados / desactivados (price action puro) |
-| Leverage | Según desbloqueo (o libre en Modo Libre) |
+| Leverage | No disponible en MVP — 1x incluso en Modo Libre (`LEVERAGE_MVP_LIMITS`). Post-MVP (Fase 5): según desbloqueo |
 | Pistas (hints) | On/off; con hints la sesión se marca "asistida" y no compite en personal bests |
 | Seed | Aleatoria por defecto; manual/guardada opcional |
 
-Libertades: guardar/reproducir/reiniciar seeds, guardar y retomar sesión, exportar sesión, historial completo. Límites: nunca se modifica el path generado, nunca se edita el decision log, nunca se "deshace" un trade. La evaluación y la detección de errores siguen activas siempre.
+Libertades MVP: guardar/reproducir/reiniciar seeds e historial completo. Guardar y retomar sesión larga y exportar sesión individual: post-MVP, Fase 3+ (`MVP_SANDBOX_LIMITS`; en MVP la portabilidad es vía export del progreso completo). Límites: nunca se modifica el path generado, nunca se edita el decision log, nunca se "deshace" un trade. La evaluación y la detección de errores siguen activas siempre.
 
 ---
 
@@ -283,7 +285,7 @@ Todo desafío: **seed fija y sellada + plantilla fija + LCC fijo + reglas visibl
 
 Tipos de desafío: diario, de habilidad, de disciplina de riesgo, sin indicadores, de supervivencia, trampa de copiado de señales, interés compuesto de largo plazo y control de drawdown.
 
-Set inicial del MVP (6 challenges con seeds fijas): Supervivencia 50 velas · Riesgo de hierro (≤1% por trade) · Sin indicadores · Paciencia (máx. 3 operaciones) · Stop obligatorio · Costos reales (superar el break-even neto de spread + fees).
+Set inicial del MVP (6 challenges con seeds fijas, cerrado por `MVP_CONTENT_LOCK`): Supervivencia 50 velas · Riesgo de hierro (≤1% por trade) · Sin indicadores · Paciencia (máx. 3 operaciones) · Stop obligatorio · Costos reales (superar el break-even neto de spread + fees). **Criterio de éxito del MVP: completar al menos 3 de los 6.** Los challenges de horizonte largo (Supervivencia 90 días, interés compuesto, portafolio a 1 año, control de drawdown) son post-MVP.
 
 Condiciones de fallo comunes: blow-up, margin call, violación de regla, drawdown máximo tocado, abandono. **Principio de fallo pedagógico:** toda derrota dispara la revisión de errores; el reinicio nunca está a un solo toque (anti-patrón casino).
 
@@ -292,7 +294,7 @@ Condiciones de fallo comunes: blow-up, margin call, violación de regla, drawdow
 ## 16. Rankings de sesión y high scores
 
 - **Todos los rankings son locales** (sin nube, sin login): el rival del usuario es su propia versión anterior.
-- Claves de ranking: por desafío, por mercado, por horizonte temporal, por dificultad y por seed guardada.
+- Claves de ranking MVP: por desafío y por seed guardada (`MVP_SANDBOX_LIMITS`). Las claves por mercado, por horizonte temporal y por dificultad son post-MVP.
 - Cada high score guarda contexto completo: challenge/seed/tipo de seed/plantilla/LCC/versión del generador/dificultad/mercado/horizonte/score total y sub-puntajes/resultado de cuenta/supervivencia/fecha.
 - Reemplazo solo si el score nuevo es estrictamente mayor; empate → mejor proceso → menor drawdown; el high score nunca baja.
 - **Separación por versión del generador:** si cambia y altera los paths, los rankings antiguos se archivan como "temporada anterior"; nunca se mezclan puntajes de caminos no comparables.
@@ -309,7 +311,7 @@ Tesis central:
 
 > **Una señal no es un resultado. La misma señal, ejecutada por dos personas distintas, puede ganar para una y perder para la otra.** La diferencia está en el spread, el slippage, el entry delay, el tamaño, el leverage, el stop loss y el comportamiento emocional.
 
-- **8 lecciones** (L1–L8) y **10 escenarios** (E1–E10) con seeds fijas; el MVP incluye 4 lecciones (misma señal/dos destinos, entrada tardía, leverage, sin invalidación), 6 escenarios (E1, E2, E3, E5, E8, E9), el detector de errores reducido y 1 challenge ("Cazador de señales").
+- **8 lecciones** (L1–L8) y **10 escenarios** (E1–E10) con seeds fijas; el MVP incluye 4 lecciones (misma señal/dos destinos, entrada tardía, leverage — solo conceptual, `LEVERAGE_MVP_LIMITS` —, sin invalidación) empaquetadas en M5.1/M5.2, 6 escenarios (E1, E2, E3, E5, E8, E9), el detector de errores reducido y 1 challenge ("Cazador de señales", integrado como mini-desafío de M5: **no** amplía el set canónico de 6 challenges de `MVP_CONTENT_LOCK`).
 - **Process Score (0–100)** como métrica estrella: gestión de riesgo 30% + invalidación 25% + calidad de entrada 20% + disciplina de salida 15% + juicio de selección 10%. **El P/L no es componente del Process Score.**
 - Momento "ajá" central del MVP: la misma señal con distinta ejecución da distinto resultado, y **se puede perder bien (E9) y ganar mal (E10)**.
 - La abstención justificada (no entrar + razón en el journal) recibe el puntaje máximo cuando el R/R está destruido.
@@ -342,7 +344,7 @@ Cada estilo tiene su desafío con seed fija y métricas propias (tiempo en posic
 - **25 pantallas especificadas:** onboarding, encuadre educativo, test de conocimientos, mapa de tutorial, lección, briefing, simulador, gráfico, panel de orden, posiciones, cuenta/equity, calculadora de riesgo, journal, controles de velocidad, selector de horizonte, dashboard de desempeño, evaluación final (doble puntaje: resultado + proceso), revisión de errores con línea de tiempo, sandbox, desafío, rankings locales, export/import, gestión de seeds/replay, ajustes.
 - **Layout del simulador (mobile-first, vertical, zona del pulgar):** gráfico de velas 50–60% de pantalla → barra superior compacta → franja de cuenta → botones Comprar/Vender (≥48dp, con spread visible) → panel de orden como bottom sheet con vista previa de risk/reward, spread, fees y slippage → controles de simulación → paneles colapsables. **Confirmación de operación obligatoria** con resumen completo antes de ejecutar.
 - **9 advertencias beginner-safe** (superficies #2E2E2E, texto #C9A050): riesgo alto, sin stop loss, leverage peligroso, entrada post-volatilidad, señal sin ajustar, overtrading, revenge trading, mover el stop, operar en alta volatilidad. Cada advertencia ignorada alimenta la revisión de errores.
-- **UX de seeds:** seed visible en briefing y evaluación; iconografía consistente 🔒 "Semilla fija" vs 🎲 "Semilla aleatoria"; badge "REPLAY" persistente; mensaje de confianza anti-manipulación en cada briefing.
+- **UX de seeds (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08):** en desafíos, el briefing muestra el **sello de equidad** (`pathHash` + `seedType` + `generatorVersion`), nunca la seed cruda, que se revela en la evaluación al cerrar el intento; en tutorial/sandbox la seed puede ser visible. Iconografía consistente 🔒 "Semilla fija" vs 🎲 "Semilla aleatoria"; badge "REPLAY" persistente; mensaje de confianza anti-manipulación en cada briefing.
 - **Accesibilidad:** contraste WCAG AA, distinción no-solo-color en velas y P/L (▲/▼, +/−), escalado de fuente +30%, lectores de pantalla, reducción de movimiento, objetivos táctiles ≥44pt/48dp.
 - Estética prohibida: verdes/rojos estridentes, negro puro, visuales de casino, UI infantil, "hazte rico".
 
@@ -428,9 +430,9 @@ Regla transversal: las flechas de los datos del usuario apuntan **hacia** el pat
 **Tres capas:** SQLite con WAL (sesiones, trades, decision logs, progreso, journal, rankings, seeds, evaluaciones) · MMKV (preferencias de UI) · Bundle de la app (lecciones, LCC, plantillas, challenges, catálogo de errores, mercados).
 
 - **Auto-save:** snapshot cada N velas y tras cada acción de trading; snapshot inmediato al pasar a background; decision log append-only insertado al ocurrir. Todo progreso está siempre guardado; escrituras de fin de sesión en una sola transacción.
-- **Export:** archivo `.burgundy` = envelope sin comprimir (`fileFormatVersion`, `appVersion`, `engineVersion`, `exportedAt`, checksum SHA-256) + payload gzip (perfil, progreso, sesiones completas, SeedRecords siempre, paths selectivos, decision logs, journal, evaluaciones, rankings, logros). Entrega vía share sheet; Burgundy no sube nada a ningún servidor. Sin datos personales; sin cifrado en MVP (checksum de integridad basta).
-- **Import:** validación estricta antes de tocar la base (formato → versión → checksum → pathHash de cada path); resumen previo; **reemplazo total con confirmación explícita + backup automático previo** (merge inteligente es post-MVP); transacción sobre base temporal promovida solo al validarse completa.
-- **Estrategia híbrida seed/path (§8 del documento 08):** siempre se guarda `seed + generatorVersion + pathHash`; el path completo comprimido solo cuando importa el replay exacto (sesiones en rankings, sesiones guardadas para replay). Si existe path almacenado, el replay lo usa (verificado contra hash); la regeneración por seed es fallback.
+- **Export:** archivo `.burgundy` según **`BURGUNDY_FILE_FORMAT_V1`** (documento 09) = envelope sin comprimir (`formatVersion`, `appVersion`, `generatorVersion`, `schemaVersion`, `exportedAt`, checksum SHA-256) + payload gzip (perfil, progreso, sesiones completas, SeedRecords siempre, paths selectivos según `SEED_PATH_REPLAY_EXPORT_LOCK`, decision logs, journal, evaluaciones, rankings, logros), con límites de tamaño cerrados. Entrega vía share sheet; Burgundy no sube nada a ningún servidor. Sin datos personales; sin cifrado en MVP (checksum de integridad basta).
+- **Import:** validación estricta antes de tocar la base (formato → versión → checksum → esquema → referencias → pathHash de cada path); resumen previo; **reemplazo total con confirmación explícita + backup automático previo obligatorio** (merge inteligente es post-MVP); transacción sobre base temporal promovida atómicamente; errores con códigos y mensajes en español de la tabla del lock.
+- **Política seed/path cerrada por `SEED_PATH_REPLAY_EXPORT_LOCK` (documento 08, §8):** `SeedRecord` y `pathHash` siempre; path materializado localmente solo para sesión activa/reciente y replays guardados explícitamente; export del path completo solo si la sesión está en curso o su `generatorVersion` no es regenerable. Si existe path almacenado, el replay lo usa (verificado contra hash); la regeneración versionada es fallback; hash no coincidente ⇒ sesión "no verificable", excluida de rankings.
 
 ---
 
@@ -449,7 +451,7 @@ Regla transversal: las flechas de los datos del usuario apuntan **hacia** el pat
 
 *(Detalle completo: documento 11.)*
 
-**Siete categorías** (0–100 cada una, ponderadas): Rentabilidad, Gestión de riesgo, Disciplina, Calidad de proceso, Paciencia, Consistencia de estrategia y Supervivencia. **La rentabilidad nunca pesa más del 25%** en ningún modo; cada LCC declara su `scoringProfile` (en una trampa FOMO, la paciencia pesa 35% y la rentabilidad 0%).
+**Siete categorías** (0–100 cada una, ponderadas): Rentabilidad, Gestión de riesgo, Disciplina, Calidad de proceso, Paciencia, Consistencia de estrategia y Supervivencia. **La rentabilidad nunca pesa más del 25%** en ningún modo; cada LCC declara su `scoringProfile` con pesos que suman exactamente 100 (en una trampa FOMO, la paciencia pesa 35% y la rentabilidad 0%). El contrato ejecutable — fórmulas por tramos con quiebres numéricos, thresholds resueltos por escenario, predicados de "setup válido"/"oportunidad válida", reglas de abstención, integración del Process Score anti-señales como perfil `senales_proceso` y casos dorados por seed fija — está cerrado por **`SCORING_V1_LOCK`** (documento 11).
 
 Regla de oro verificable (requisito del motor, no sugerencia):
 
@@ -471,16 +473,31 @@ Tesis que el MVP debe demostrar:
 | Bloque | Contenido MVP |
 |---|---|
 | Motor | Generación procedural por regímenes con seed determinista; pre-generación total + hash; sub-ticks; spread/slippage/fees deterministas; gaps y eventos; versionado del generador |
-| Mercados | 3–5 instrumentos sintéticos (FX, acción, cripto; índice según recursos), ficticios y verosímiles |
-| Contenido | 5 módulos / 15 lecciones (M1–M5) con seeds fijas, quizzes y mini-simulaciones; módulo anti-señales reducido |
-| Modos | Tutorial guiado, sandbox (seeds aleatorias + guardar/repetir), 6 challenges con seeds fijas, modo libre, modo sin indicadores, progresión con desbloqueos |
-| Órdenes | Market, limit, stop + SL/TP; cierre manual; reset por blow-up con revisión educativa |
+| Mercados | 3 instrumentos sintéticos según `MVP_MARKET_LOCK` (`synthetic_fx`, `synthetic_stock`, `synthetic_crypto` con desbloqueo tardío) sobre la base `synthetic_training`, ficticios y verosímiles; índices post-MVP |
+| Contenido | 5 módulos / 15 lecciones (M1–M5) con seeds fijas, quizzes y mini-simulaciones; módulo anti-señales reducido — IDs cerrados por `MVP_CONTENT_LOCK` |
+| Modos | Tutorial guiado, sandbox mínimo según `MVP_SANDBOX_LIMITS` (seeds aleatorias + guardar/repetir; horizontes Intradía/1 semana; sin leverage), 6 challenges con seeds fijas (≥3 completados = éxito), modo libre, modo sin indicadores, progresión con desbloqueos |
+| Órdenes | Market, limit, stop + SL/TP; cierre manual; reset por blow-up con revisión educativa; leverage 1x (`LEVERAGE_MVP_LIMITS`) |
 | Evaluación | Score completo por LCC, grades, detección de errores núcleo (10–15), journal guiado, revisión de errores con replay exacto |
-| Gamificación | XP, niveles, racha diaria, desbloqueos, high scores y rankings locales |
+| Gamificación | XP, niveles, racha diaria, desbloqueos, high scores y rankings locales (claves MVP: por desafío y por seed guardada) |
 | Persistencia | 100% local; export/import `.burgundy` con validación y backup |
 | UX | Las 25 pantallas esenciales, las 9 advertencias beginner-safe, accesibilidad AA |
 
-**Excluido del MVP sin excepción:** replay histórico real e ingesta de datos, integración con brokers, dinero real, señales reales, coach de IA, monetización, login/nube, cursos, rankings online entre usuarios, otros idiomas, leverage/margen avanzado y futuros (Fase 5).
+**Excluido del MVP sin excepción:** replay histórico real e ingesta de datos, integración con brokers, dinero real, señales reales, coach de IA, monetización, login/nube, cursos, rankings online entre usuarios, otros idiomas, leverage/margen avanzado y futuros (Fase 5), índices sintéticos y commodities (post-MVP temprano), horizontes de sandbox superiores a 1 semana y export de sesión individual (Fase 3+).
+
+**Locks vigentes (resumen, una línea por lock):**
+
+| Lote | Lock | Documento dueño |
+|---|---|---|
+| A | `MVP_MARKET_LOCK` — matriz canónica de mercados MVP | `12_mvp_scope.md` |
+| A | `MVP_CONTENT_LOCK` — contenido educativo canónico MVP | `12_mvp_scope.md` |
+| A | `MVP_SANDBOX_LIMITS` — sandbox mínimo y presupuesto de simulación | `12_mvp_scope.md` |
+| A | `LEVERAGE_MVP_LIMITS` — leverage 1x salvo escenario cerrado | `12_mvp_scope.md` |
+| B | `SEED_PATH_REPLAY_EXPORT_LOCK` — política única seed/path/replay/export/visibilidad | `08_technical_architecture.md` |
+| B | `DETERMINISM_LOCK_V1` — PCG32, substreams, enteros escalados, serialización canónica, corpus dorado | `08_technical_architecture.md` |
+| B | `SCORING_V1_LOCK` — `scoring_v1` ejecutable, thresholds, predicados, casos dorados | `11_evaluation_scoring.md` |
+| B | `BURGUNDY_FILE_FORMAT_V1` — formato `.burgundy` v1 e import transaccional | `09_data_models.md` |
+
+Ante contradicción entre cualquier sección de este documento (o de los documentos 01–12) y un lock, gana el lock.
 
 Criterios de éxito (verificables): tutorial + 3 challenges + sandbox completables 100% offline; todo path generado antes de la primera acción con hash verificable; mismo seed ⇒ mismo hash en Android e iOS; score explicable al 100% por el LCC; export → instalación limpia → import sin pérdida; principiantes capaces de explicar spread, slippage, stop loss, drawdown y risk/reward; cero estética prohibida.
 
@@ -531,7 +548,7 @@ Sección integral de los 20 puntos requeridos:
 3. **Sistema de seeds determinista:** misma plantilla + parámetros + seed + versión del generador ⇒ mismo path, byte a byte. PRNG entero propio con streams por subsistema; sin entropía externa (sección 7).
 4. **Tipos de seed:** tutorial fija, desafío fija, sandbox aleatoria, replay, histórico-inspirada (futura) y replay histórico exacto (futuro).
 5. **Lógica de replay:** path + decision log = sesión completa reproducible. Dos modos: reintento (mismo mercado, decisiones nuevas) y revisión de errores (decisiones originales anotadas sobre el gráfico). El replay valida el hash antes de iniciar; nunca compite en el ranking de primer intento; su métrica estrella es "errores corregidos".
-6. **Equidad de desafíos:** seed fija + plantilla fija + versión fija ⇒ todos los intentos enfrentan exactamente el mismo mercado; el hash permite verificar que nadie jugó contra un camino distinto; la seed no se revela hasta terminar; el ranking principal usa el primer intento por seed.
+6. **Equidad de desafíos (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08):** seed fija + plantilla fija + versión fija ⇒ todos los intentos enfrentan exactamente el mismo mercado; el hash permite verificar que nadie jugó contra un camino distinto. Antes del intento se muestra solo el sello de equidad (`pathHash` + `seedType` + `generatorVersion` + reglas del LCC); la seed cruda se revela al cerrar el intento; intentos con seed conocida de antemano se marcan `seed_known = true` y no son elegibles para el ranking principal de primer intento por seed.
 7. **Aleatorización del sandbox:** seeds aleatorias que pasan siempre por el generador de regímenes (variación impredecible pero estructuralmente realista, nunca ruido puro); en modo `random_constrained`, el LCC garantiza que los regímenes requeridos aparezcan; toda seed se registra y puede guardarse con nombre.
 8. **Persistencia local de seeds:** todo `SeedRecord` (seed + tipo + generatorVersion + template + LCC + parámetros + pathHash) se guarda en SQLite y es **permanente** mientras exista una sesión que lo referencie — pesa bytes y es la garantía de replay.
 9. **Export/import de sesiones con seeds:** los `SeedRecord` viajan **siempre** en el archivo `.burgundy`; las sesiones completas incluyen órdenes, trades, decision log y evaluación; los paths completos viajan solo cuando importa el replay exacto; el import valida formato, checksum y pathHash antes de aplicar.

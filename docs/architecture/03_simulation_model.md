@@ -64,7 +64,7 @@ Todas las fuentes de datos (sintética, procedural, tutorial fija, desafío fijo
 | `liquidity_hint` | Nivel de liquidez vigente (afecta slippage) |
 | `regime_tag` | Etiqueta interna del régimen activo (oculta al usuario en desafíos, visible en revisión educativa) |
 | `event_ref` | Referencia opcional a un evento del calendario si ocurre dentro de la vela |
-| `subticks[]` | Opcional: 4–16 sub-pasos de precio intra-vela para movimiento tipo tick |
+| `subticks[]` | Opcional: sub-pasos de precio intra-vela para movimiento tipo tick (4–8 por vela en MVP — `MVP_SANDBOX_LIMITS` y `DETERMINISM_LOCK_V1`) |
 
 El motor de órdenes y el de evaluación solo conocen este formato. Por eso Burgundy es **historical-ready**: cuando exista un adaptador de datos históricos, producirá este mismo formato y nada más cambia.
 
@@ -126,7 +126,7 @@ La generación ocurre **una sola vez, completa, antes de la sesión**, así:
 
 Burgundy no simula un libro de órdenes real (innecesario y costoso para educación). Aproxima el movimiento tipo tick así:
 
-- Cada vela contiene **4–16 sub-ticks** pregenerados (también deterministas, derivados del mismo seed).
+- Cada vela contiene **4–8 sub-ticks en MVP** (`MVP_SANDBOX_LIMITS`, documento 12) pregenerados — también deterministas, derivados del mismo seed (`DETERMINISM_LOCK_V1`, documento 08).
 - Los sub-ticks forman un mini-camino dentro de la vela que: parte del `open`, visita `high` y `low` en un orden determinado por el seed, y termina en el `close`.
 - La cantidad de sub-ticks por vela escala con la volatilidad vigente (más volatilidad = más sub-pasos = movimiento más "nervioso").
 - **SL/TP, ejecuciones de órdenes pendientes y liquidaciones se evalúan a nivel de sub-tick**, no de cierre de vela. Esto evita el clásico engaño de los simuladores baratos donde el stop "no se tocó" porque solo se mira el close.
@@ -324,6 +324,8 @@ Mecánica de compresión de tiempo sin perder realismo:
 
 El generador usa un PRNG (generador pseudoaleatorio) con seed explícita; todo el "azar" de la simulación proviene de ahí. No se usa ninguna fuente de entropía externa (reloj real, sensores, input del usuario) durante la generación.
 
+> Contrato técnico cerrado por **`DETERMINISM_LOCK_V1`** (documento 08, sección 9): PRNG = PCG32, seed de 64 bits sin signo, substreams con índices fijos por subsistema, precios en enteros escalados (`priceScale` por instrumento), tiempo lógico, redondeo half-even, serialización canónica del path como entrada del SHA-256 y corpus dorado de hashes en CI. Ante contradicción, gana el lock.
+
 ### 20.2 Tipos de seed
 
 | Tipo de seed | Uso | Propiedad clave |
@@ -345,7 +347,7 @@ El generador usa un PRNG (generador pseudoaleatorio) con seed explícita; todo e
 - Los desafíos con ranking usan seed fija + plantilla fija + versión de generador fija → todos compiten contra el mismo mercado.
 - El hash del camino permite verificar que nadie jugó contra un camino distinto.
 - El decision log con timestamps de simulación permite detectar reintentos: solo el primer intento (o el intento declarado según las reglas del desafío) puntúa para ranking.
-- En desafíos, la seed no se revela hasta terminar (evita pregenerar el camino y "estudiarlo" fuera de la app).
+- Visibilidad de seed en desafíos (cerrada por `SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08): antes del intento se muestran solo `pathHash`, `seedType`, `generatorVersion` y las reglas del LCC — el sello de equidad. La seed cruda se revela únicamente al cerrar el intento (evita pregenerar el camino y "estudiarlo" fuera de la app). Si la seed era conocida de antemano (replay, seed guardada), el intento se marca `seed_known = true` y no es elegible para el ranking principal de primer intento.
 
 ### 20.5 Metadatos almacenados por simulación
 
@@ -396,8 +398,8 @@ Solución:
 
 - Toda simulación guarda su `generator_version` (versionado semántico: `gen-MAJOR.MINOR.PATCH`).
 - **Regla de oro:** cualquier cambio que altere la salida para una misma seed incrementa la versión MAJOR o MINOR. PATCH se reserva para cambios que NO alteran la salida (rendimiento, refactors verificados por hash).
-- La app conserva los generadores anteriores como módulos versionados (o, si el costo de mantenerlos crece, conserva los **caminos generados completos** de las sesiones importantes dentro del archivo de progreso, de modo que el replay no necesite regenerar).
-- Estrategia por defecto del MVP: guardar siempre el camino generado comprimido junto con sus metadatos. Regenerar desde seed es la verificación; el camino guardado es la fuente del replay. Así, aunque un generador viejo se retire, los replays viejos sobreviven.
+- La app conserva los generadores anteriores como módulos versionados (o, si el costo de mantenerlos crece, conserva los **caminos generados completos** de las sesiones afectadas, congelados antes de retirar el generador).
+- Estrategia por defecto del MVP (cerrada por **`SEED_PATH_REPLAY_EXPORT_LOCK`**, documento 08, sección 8): `SeedRecord` y `pathHash` **siempre**; el camino completo se materializa localmente solo para la sesión activa/reciente y los replays guardados explícitamente; el resto se regenera desde `seed + generatorVersion`. El replay usa el camino almacenado si existe (validando su hash); la regeneración versionada es el fallback, también validada por hash. El export incluye el camino completo solo si la sesión está en curso o su `generatorVersion` no es regenerable por el build actual.
 - Los desafíos con ranking fijan plantilla + seed + versión: un desafío nunca cambia de versión de generador a mitad de su periodo de competencia.
 
 ---
@@ -451,7 +453,7 @@ El LCC define el contexto; la seed define la instancia; el usuario define el res
 | Escenarios prediseñados para tutorial + seeds fijas de desafío + sandbox aleatorio | ✅ |
 | Replay de escenario y replay de sesión con decisiones superpuestas | ✅ |
 | Rewind educativo (solo modos no competitivos) | ✅ |
-| Versionado del generador + camino guardado comprimido | ✅ |
+| Versionado del generador + política seed/path/replay/export según `SEED_PATH_REPLAY_EXPORT_LOCK` | ✅ |
 | Metadatos completos por simulación, exportables/importables offline | ✅ |
 | Horizonte largo básico (3 y 6 meses en marcos mayores con checkpoints) | ✅ |
 

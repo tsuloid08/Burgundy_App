@@ -71,7 +71,7 @@ Convenciones usadas en todas las tablas:
 | Aspecto | Detalle |
 |---|---|
 | **Propósito** | Un instrumento simulado concreto dentro de un mercado (ej. "EUR/USD simulado", "BTC/USD simulado"). Define la aritmética de la simulación: tamaño de pip/tick, decimales, tamaño de contrato, apalancamiento máximo permitido en el simulador. |
-| **Campos requeridos** | `id`, `marketId`, `symbol` (ej. `EURUSD.sim`), `displayNameEs`, `pipOrTickSize`, `priceDecimals`, `contractSize`, `minLotSize`, `maxLotSize`, `maxLeverage`, `baseSpreadRange`, `feeModel` (comisión fija, por lote, o spread-only) |
+| **Campos requeridos** | `id`, `marketId`, `symbol` (ej. `EURUSD.sim`), `displayNameEs`, `pipOrTickSize`, `priceDecimals`, `priceScale` (potencia de 10 = `10^priceDecimals`; escala entera obligatoria de precios para la generación determinista — `DETERMINISM_LOCK_V1`, documento 08), `contractSize`, `minLotSize`, `maxLotSize`, `maxLeverage`, `baseSpreadRange`, `feeModel` (comisión fija, por lote, o spread-only) |
 | **Campos opcionales** | `slippageProfileDefault`, `liquidityClass` (`alta`, `media`, `baja`), `educationalNotesEs`, `unlockRequirement` |
 | **Relaciones** | N→1 con `Market`; referenciado por `ScenarioTemplate`, `SeedRecord`, `SimulationSession`, `Order`, `Trade`, `Position` |
 | **Persistencia** | Bundle. |
@@ -417,7 +417,7 @@ El registro granular de **todo lo que el usuario hizo y cuándo**, en tiempo sim
 | Aspecto | Detalle |
 |---|---|
 | **Propósito** | El contenedor de export/import: snapshot completo del progreso del usuario, autocontenido, versionado y verificable. No es un modelo de base de datos sino un **formato de archivo** (ver §13.3–§13.6). |
-| **Campos requeridos (envelope)** | `fileFormatVersion`, `appVersion`, `engineVersion`, `dbSchemaVersion`, `exportedAt`, `installId` (origen), `checksum` (SHA-256 del payload), `payload` (todos los datos exportables comprimidos) |
+| **Campos requeridos (envelope)** | `formatVersion` (versión del formato, independiente de la app), `appVersion`, `generatorVersion` (motor instalado al exportar), `schemaVersion` (esquema de la base local), `exportedAt`, `checksum` (SHA-256 del payload), `payload` (todos los datos exportables comprimidos). Opcionales: `installId` (origen), `userNote`. Normativo: `BURGUNDY_FILE_FORMAT_V1` (§3.6 bis). |
 | **Contenido del payload** | `UserProfile`, `TutorialProgress[]`, `SimulationSession[]` completas (con `Order[]`, `Trade[]`, `UserDecisionLog[]`, `Evaluation`, `Account` final), `SeedRecord[]`, `Scenario[]`, `GeneratedMarketPath[]` selectos (§13.11), `JournalEntry[]`, `RankingEntry[]`, estado de `Achievement[]`, respuestas a `Signal[]` |
 | **Campos opcionales** | `userNote` (etiqueta que el usuario pone al export), `partialExportScope` (futuro: exportar solo journal, por ejemplo) |
 | **Persistencia** | Archivo en el sistema de archivos del dispositivo, compartible vía share sheet del SO. Extensión propia: `.burgundy`. |
@@ -557,6 +557,32 @@ Escenario: el dispositivo tiene progreso más nuevo (o simplemente distinto) que
 
 Se descartan: SQLite crudo como formato de intercambio (acopla el archivo al esquema interno y a la versión del motor de BD) y formatos binarios propietarios (dificultan depuración y auditoría sin beneficio real a este volumen de datos).
 
+### 3.6 bis — Especificación cerrada del archivo `.burgundy` v1
+
+<!-- LOCK: BURGUNDY_FILE_FORMAT_V1 — Documento dueño: 09_data_models.md. Resuelve AUD-012. Los documentos 08 y 12 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **BURGUNDY_FILE_FORMAT_V1 — Formato `.burgundy` v1 (cerrado).**
+>
+> 1. **Estructura.** Archivo = **envelope JSON sin comprimir** + **payload JSON canónico comprimido con gzip**. El envelope se valida sin descomprimir el payload. El esquema completo de envelope y payload se define como JSON Schema (implementado con Zod) versionado en el repo; el validador de import se deriva de ese esquema — nunca se escribe dos veces a mano.
+> 2. **Envelope (obligatorios):** `formatVersion` (semver del formato, independiente de la versión de la app) · `appVersion` · `generatorVersion` (la del motor instalado al exportar) · `schemaVersion` (versión del esquema SQLite) · `exportedAt` (ISO 8601 UTC) · `checksum` (SHA-256 hex del payload comprimido). **Opcionales:** `installId`, `userNote`.
+> 3. **Payload (claves obligatorias, colecciones posiblemente vacías):** `profile` · `curriculumProgress` · `sessions` (completas: órdenes, trades, decision logs, evaluación, cuenta final) · `seedRecords` (**siempre, todos** — `SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08) · `scenarios` · `paths` (selectivos según `SEED_PATH_REPLAY_EXPORT_LOCK`: solo sesión `en_curso` o `generatorVersion` no regenerable) · `journal` · `evaluations` · `rankings` · `achievements` · `signalResponses`.
+> 4. **Límites duros:** archivo total ≤ 50 MB · cada path embebido ≤ 2 MB comprimido · máximo 200 paths embebidos. Superar un límite **aborta el export** con mensaje claro; jamás se escribe un archivo truncado.
+> 5. **Import transaccional (orden estricto):** (1) envelope bien formado → (2) `formatVersion` soportada, con migración del payload en memoria a la versión actual → (3) checksum → (4) esquema del payload → (5) integridad referencial → (6) `pathHash` de cada path embebido → (7) **backup automático previo obligatorio** de la base actual → (8) aplicación sobre base temporal → (9) promoción atómica. Si cualquier paso falla, la base activa queda intacta.
+> 6. **Tabla de errores de import (códigos cerrados, mensajes en español):**
+>
+> | Código | Causa | Mensaje al usuario |
+> |---|---|---|
+> | `IMP-001` | JSON malformado / no es `.burgundy` | "El archivo está dañado o no es un archivo de progreso de Burgundy." |
+> | `IMP-002` | `formatVersion` más nueva que la soportada | "Este archivo fue creado por una versión más reciente de Burgundy. Actualiza la app para importarlo." |
+> | `IMP-003` | Checksum no coincide | "El archivo está corrupto o fue modificado. No se importó nada." |
+> | `IMP-004` | Esquema del payload inválido | "El contenido del archivo no es válido. No se importó nada." |
+> | `IMP-005` | Referencia rota (p. ej. sesión sin `SeedRecord`) | "El archivo está incompleto. No se importó nada." |
+> | `IMP-006` | `pathHash` no coincide en un path embebido | "Una sesión guardada no superó la verificación de integridad. No se importó nada." |
+> | `IMP-007` | Límite de tamaño excedido | "El archivo supera el tamaño máximo permitido." |
+> | `IMP-008` | Fallo al escribir/promover la base temporal | "No se pudo aplicar la importación. Tu progreso actual no fue modificado." |
+>
+> 7. **Migraciones de formato:** cambios compatibles (campos opcionales nuevos) incrementan *minor*; cambios incompatibles incrementan *major* y exigen un migrador `vN → vN+1` empaquetado de por vida (los migradores de import nunca se eliminan). `formatVersion` es independiente de `generatorVersion` y de `appVersion`.
+
 ### 3.7 Consideraciones de privacidad de datos
 
 - **Todo es local.** Burgundy no tiene backend, no envía telemetría con datos del usuario, no requiere cuenta. Es su mayor garantía de privacidad y debe declararse explícitamente en la app.
@@ -617,6 +643,8 @@ Quedan **fuera del MVP**: `TickEvent` materializado (se regenera), sistema compl
 
 ### 3.11 Qué seeds y paths deben incluirse en el archivo de export
 
+> Política normativa: **`SEED_PATH_REPLAY_EXPORT_LOCK`** (documento 08, sección 8). Esta sección es su aplicación al modelo de datos.
+
 Regla general: **se exportan todos los `SeedRecord`; los `GeneratedMarketPath` solo cuando el seed ya no garantiza la regeneración exacta.**
 
 | Dato | ¿Se exporta? | Razón |
@@ -633,7 +661,7 @@ Si al importar, el dispositivo destino tiene una versión de motor que no puede 
 
 ### 3.12 ¿El MVP guarda paths completos o solo seeds + versión de generador?
 
-**Recomendación: estrategia híbrida "seed como verdad, path como caché".**
+**Estrategia híbrida "seed como verdad, path como caché", cerrada por `SEED_PATH_REPLAY_EXPORT_LOCK` (documento 08).**
 
 - **La verdad permanente es `seed + generatorVersion + scenarioTemplateId + pathHash`** (el `SeedRecord`). Esto es lo que se guarda para siempre y se exporta siempre.
 - **El path materializado es una caché:** se genera completo al iniciar la sesión (obligatorio por la filosofía del producto), se conserva mientras la sesión está en curso y durante una ventana de uso reciente (ej. últimas 10 sesiones, para replay instantáneo), y después es purgable — regenerarlo desde el seed toma milisegundos para los tamaños del MVP (cientos a pocos miles de velas).

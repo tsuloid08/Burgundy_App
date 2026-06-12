@@ -72,7 +72,7 @@ Todo escenario en Burgundy se compone de estas capas:
 | **Replay** | Repetición de sesión | Reutiliza la seed original; el path es idéntico al de la sesión repetida. |
 | **Histórica-inspirada (futuro)** | Escenarios basados en episodios reales | Seed + referencia a un dataset histórico en formato de vela universal; el motor no cambia. |
 
-Regla de oro: **la seed se selecciona o genera ANTES de generar el path, y el path se genera completo ANTES de que el usuario vea la primera vela.** Se almacena un hash del path generado para verificar integridad en replays y rankings.
+Regla de oro: **la seed se selecciona o genera ANTES de generar el path, y el path se genera completo ANTES de que el usuario vea la primera vela.** Se almacena un hash del path generado para verificar integridad en replays y rankings. La política completa de persistencia, export, replay y visibilidad de seeds está cerrada por `SEED_PATH_REPLAY_EXPORT_LOCK` (documento 08); el contrato de determinismo (PCG32, serialización canónica, corpus dorado) por `DETERMINISM_LOCK_V1` (documento 08).
 
 ### 2.2 Formato universal de vela
 
@@ -96,7 +96,7 @@ Flujo completo, en orden estricto:
 | 8 | **Seleccionar o generar seed** | Fija (tutorial/challenge), aleatoria (sandbox), o de replay. |
 | 9 | **Seleccionar versión del generador** | `generatorVersion` queda sellada en los metadatos de la sesión. |
 | 10 | **Generar el path completo de mercado** | Todas las velas, eventos, curvas de spread/liquidez y trampas se materializan ANTES de la acción del usuario. |
-| 11 | **Almacenar hash del path** | Hash criptográfico del path; valida replays, rankings y exports. |
+| 11 | **Almacenar hash del path** | SHA-256 de la serialización canónica del path (`DETERMINISM_LOCK_V1`, documento 08), sellado antes de la primera vela visible; valida replays, rankings y exports. |
 | 12 | **Iniciar sesión de usuario** | Se presenta el contexto, el setup y la tarea; arranca el reloj de simulación. |
 | 13 | **Registrar decisiones** | Cada orden, modificación, cancelación, cambio de tamaño, cierre, pausa y "no acción" relevante queda en el log con timestamp simulado. |
 | 14 | **Evaluar contra el LCC** | Al cerrar la sesión, el evaluador cruza el log de decisiones con las reglas del contrato: errores detectados, decisiones buenas/malas, métricas de proceso. |
@@ -151,7 +151,7 @@ Todas medibles objetivamente desde el log de decisiones:
 
 ### 5.2 Reglas universales de detección de errores
 
-Activas en todos los escenarios salvo que el LCC indique lo contrario:
+Activas en todos los escenarios salvo que el LCC indique lo contrario. Los valores N/X/umbral de esta tabla quedan **resueltos por escenario en el `scoringProfile` de su LCC**, con los defaults numéricos canónicos de `SCORING_V1_LOCK` (documento 11):
 
 | Código | Error detectado | Regla objetiva |
 |---|---|---|
@@ -213,7 +213,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 |---|---|
 | **Título** | "Día de tendencia" |
 | **Nivel de usuario** | 2 |
-| **Tipo de mercado** | Índice sintético intradía |
+| **Tipo de mercado** | Acción sintética intradía *(reasignado desde índice sintético: el índice es post-MVP según `MVP_MARKET_LOCK`, documento 12)* |
 | **Velocidad recomendada** | Media (1 vela/s), pausa libre |
 | **Setup** | Sesión intradía con tendencia direccional sostenida y 2–3 pullbacks operables. |
 | **Tarea del usuario** | Identificar la dirección, entrar en un pullback (no persiguiendo el precio) y dejar correr la ganancia con gestión de stop. |
@@ -337,7 +337,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 |---|---|
 | **Título** | "Cuando entrar ya cuesta caro" |
 | **Nivel de usuario** | 4 |
-| **Tipo de mercado** | Par exótico sintético (spread estructural alto) |
+| **Tipo de mercado** | `synthetic_fx` con perfil de spread estructural alto aplicado por el escenario *(no es un instrumento adicional del catálogo: `MVP_MARKET_LOCK` limita el MVP a 3 instrumentos; el "par exótico" es un perfil de escenario)* |
 | **Velocidad recomendada** | Media-alta |
 | **Setup** | Mercado operable con estructura normal, pero spread 5–8 veces mayor que en escenarios previos, visible en el panel. |
 | **Tarea del usuario** | Operar una sesión completa siendo rentable DESPUÉS de costos, o concluir que el instrumento no compensa. |
@@ -447,7 +447,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Desbloqueo** | Escenario 5 completado. |
 | **Modo libre** | Sí. |
 | **Histórico-inspirado a futuro** | Sí. |
-| **Fase** | **MVP** |
+| **Fase** | **MVP** — única excepción de leverage del MVP: corre con **parámetros fijos empaquetados** (leverage definido por el escenario, fórmula de liquidación simplificada y determinista, sin margin engine general), según `LEVERAGE_MVP_LIMITS` (documento 12, sección 5). |
 
 ---
 
@@ -457,7 +457,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 |---|---|
 | **Título** | "Después de la pérdida" |
 | **Nivel de usuario** | 6 |
-| **Tipo de mercado** | Índice sintético intradía |
+| **Tipo de mercado** | Acción sintética intradía *(reasignado desde índice sintético: el índice es post-MVP según `MVP_MARKET_LOCK`, documento 12)* |
 | **Velocidad recomendada** | Media; **pausa deshabilitada en la ventana post-pérdida** (la presión emocional es parte del diseño) |
 | **Setup** | El path está diseñado para que el primer setup razonable de la sesión falle (pérdida limpia con stop). Inmediatamente después aparecen 2–3 "oportunidades" de calidad mediocre, tentadoras, antes de que llegue un segundo setup genuino más tarde. |
 | **Tarea del usuario** | Operar la sesión completa. El verdadero examen empieza después de la primera pérdida. |
@@ -568,7 +568,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Desbloqueo** | Escenarios 1–11 completados. |
 | **Modo libre** | No — solo como challenge formal (su valor depende de las reglas duras). |
 | **Histórico-inspirado a futuro** | Sí — "sobrevive el 2008" como temporada futura. |
-| **Fase** | **MVP** (es el challenge insignia de Burgundy) |
+| **Fase** | **Posterior al MVP** — movido por `MVP_CONTENT_LOCK` y `MVP_SANDBOX_LIMITS` (documento 12): el horizonte de 90 días excede el presupuesto de simulación del MVP. El rol de challenge de supervivencia del MVP lo cubre **"Supervivencia 50 velas"** (documento 12, sección 8), de horizonte corto. Este escenario regresa como challenge insignia en la fase de horizontes largos. |
 
 ---
 
@@ -658,7 +658,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Desbloqueo** | Challenge 13 completado. |
 | **Modo libre** | Sí (versión práctica). |
 | **Histórico-inspirado a futuro** | Sí. |
-| **Fase** | **MVP** |
+| **Fase** | **Posterior al MVP** — no pertenece al set canónico de 6 challenges de `MVP_CONTENT_LOCK` y su horizonte de 1 mes excede `MVP_SANDBOX_LIMITS` (documento 12). |
 
 ---
 
@@ -678,12 +678,14 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | 10 | Revenge trading | 6 | TRAP_SEQUENCE | Fija | Anzuelos post-pérdida | MVP |
 | 11 | Gestión de riesgo | 7 | GRIND 5d | Fija/aleatoria | Racha perdedora | MVP |
 | 12 | Interés compuesto | 8 | GRIND 12m | Fija/aleatoria | Doble caída en corrección | Posterior |
-| 13 | Supervivencia 90 días | 8 | GRIND hostil | Fija temporada | Hostilidad sostenida | MVP |
+| 13 | Supervivencia 90 días | 8 | GRIND hostil | Fija temporada | Hostilidad sostenida | Posterior |
 | 14 | Portafolio 1 año | 9 | GRIND multi | Fija temporada | Correlación en crisis | Posterior |
 | 15 | Solo velas | 7 | Mixto sin indicadores | Fija temporada | Fake breakout estructural | MVP |
-| 16 | Control de drawdown | 8 | TRAP+GRIND | Fija temporada | Anzuelos de recuperación | MVP |
+| 16 | Control de drawdown | 8 | TRAP+GRIND | Fija temporada | Anzuelos de recuperación | Posterior |
 
-Ruta de progresión (desbloqueos): 1 → 2 → 3 → 4 → {5, 8} → 6 → 7 → 9 → 10 → 11 → {12, 13, 15} → {14, 16}.
+> **Alcance MVP del catálogo cerrado por `MVP_CONTENT_LOCK` (documento 12, sección 3): MVP = escenarios 1–11 y 15; post-MVP = 12, 13, 14 y 16.** El challenge de supervivencia del MVP es "Supervivencia 50 velas" (documento 12, sección 8). Ante contradicción entre este catálogo y el lock, gana el lock.
+
+Ruta de progresión (desbloqueos): 1 → 2 → 3 → 4 → {5, 8} → 6 → 7 → 9 → 10 → 11 → 15 *(MVP)* → {12, 13, 14, 16} *(post-MVP)*.
 
 ---
 
@@ -696,27 +698,28 @@ Ruta de progresión (desbloqueos): 1 → 2 → 3 → 4 → {5, 8} → 6 → 7 �
 
 ### 8.2 Modo sandbox
 - **Seeds aleatorias** por sesión, generadas y selladas antes de la primera vela; siempre guardadas → toda sesión sandbox es reproducible.
-- El usuario elige template, mercado, dificultad y parámetros desbloqueados; el pipeline (sección 3) corre igual que en lecciones.
+- El usuario elige template, mercado, dificultad y parámetros desbloqueados; el pipeline (sección 3) corre igual que en lecciones. En MVP, las opciones quedan acotadas por `MVP_SANDBOX_LIMITS`, `MVP_MARKET_LOCK` y `LEVERAGE_MVP_LIMITS` (documento 12): 3 instrumentos sintéticos, horizontes Intradía/1 semana, sin leverage.
 - La evaluación LCC corre en modo "informativo": detecta errores y da feedback, pero no bloquea ni puntúa para rankings.
 
 ### 8.3 Modo challenge
 - **Seeds fijas por temporada**, versionadas con `generatorVersion` y hash de path: todos los participantes de una temporada juegan el mismo mercado.
+- **Visibilidad de seed (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08):** antes del intento solo se muestran `pathHash`, `seedType`, `generatorVersion` y las reglas del LCC; la seed cruda se revela al cerrar el intento. Intentos con seed conocida de antemano se marcan `seed_known = true` y no compiten en el ranking principal de primer intento.
 - Reglas duras activas (límites de drawdown, fin inmediato).
-- El score de challenge pondera proceso > resultado, según el LCC de cada challenge.
+- El score de challenge pondera proceso > resultado, según el LCC de cada challenge (`SCORING_V1_LOCK`, documento 11).
 
 ### 8.4 Modo replay
 - Reconstruye cualquier sesión desde: template + parámetros + seed + `generatorVersion` + log de decisiones.
-- El hash de path verifica fidelidad; si la versión del generador instalada no coincide, Burgundy avisa y reproduce con la versión empaquetada compatible o muestra el replay desde los datos almacenados.
+- Resolución cerrada por `SEED_PATH_REPLAY_EXPORT_LOCK` (documento 08): si existe path almacenado, el replay lo usa validando su hash; si no, regenera con el generador de la `generatorVersion` registrada y valida el hash. Hash no coincidente ⇒ sesión "no verificable", excluida de rankings, jamás reparada en silencio.
 - Dos modos de visualización: "ver mi sesión" (decisiones sobreimpresas en el path) y "reintentar" (mismo path, nuevas decisiones, comparación lado a lado de curvas de equity).
 
 ### 8.5 Rankings de sesión y high scores
-- Solo escenarios con **seed fija** alimentan rankings: la comparación es justa porque el mercado fue idéntico.
+- Solo escenarios con **seed fija** alimentan rankings: la comparación es justa porque el mercado fue idéntico. El ranking principal usa el **primer intento por seed**; los intentos `seed_known = true` (replay, seed guardada) quedan fuera de esa tabla (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08).
 - Ranking local (sin nube): el usuario compite contra sus propias sesiones pasadas y contra percentiles de referencia empaquetados con la app.
 - El high score guarda: score, seed, `generatorVersion`, hash de path, métricas de proceso y metadatos de replay — un high score siempre es auditable y reproducible.
 
 ### 8.6 Export / import de progreso
 - El archivo de progreso incluye: estado de desbloqueos, XP, niveles, streaks, journal, registros de errores, high scores, y los **metadatos de replay** (seed + parámetros + versión + hash + log de decisiones) de las sesiones guardadas.
-- No es necesario exportar las velas: con seed + parámetros + versión, cualquier instalación de Burgundy regenera el path idéntico. El hash valida la regeneración tras importar.
+- Las velas viajan selectivamente según `SEED_PATH_REPLAY_EXPORT_LOCK` (documento 08): los `SeedRecord` se exportan **siempre**; el path completo solo si la sesión está en curso o su `generatorVersion` no es regenerable por el build actual. Para todo lo demás, cualquier instalación de Burgundy regenera el path idéntico desde seed + parámetros + versión, y el hash valida la regeneración tras importar.
 - Si una versión futura del generador cambia, los replays antiguos siguen siendo válidos porque la `generatorVersion` original viaja en el export.
 
 ### 8.7 Escenarios histórico-inspirados (futuro)

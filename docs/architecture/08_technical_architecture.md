@@ -178,21 +178,26 @@ Prácticas:
 
 ## 7. Estrategia de export/import de progreso
 
-**Formato:** un único archivo JSON versionado, extensión propia `.burgundy` (JSON comprimido con gzip/deflate).
+**Formato:** un único archivo JSON versionado, extensión propia `.burgundy` (envelope sin comprimir + payload gzip).
+
+> **Especificación normativa cerrada: `BURGUNDY_FILE_FORMAT_V1` (documento 09).** Esta sección es un resumen arquitectónico; el esquema exacto, los límites de tamaño, la tabla de errores de import y el proceso transaccional viven en el lock. Ante contradicción, gana el lock.
 
 Estructura lógica del archivo:
 
 ```text
-header:
-  formatVersion        (versión del formato de export)
+envelope (sin comprimir):
+  formatVersion        (versión del formato de export, independiente de la app)
   appVersion           (versión de Burgundy que exportó)
-  exportedAt           (timestamp ISO)
+  generatorVersion     (versión del motor instalado al exportar)
+  schemaVersion        (versión del esquema de la base local)
+  exportedAt           (timestamp ISO 8601 UTC)
   checksum             (SHA-256 del payload, para detectar corrupción/manipulación)
-payload:
+payload (gzip):
   profile              (XP, nivel, rachas, desbloqueos)
   curriculumProgress
   sessions             (metadatos + seed + generatorVersion + pathHash de cada una)
-  sessionPaths         (paths completos solo de sesiones marcadas como replayables)
+  seedRecords          (siempre, todos — SEED_PATH_REPLAY_EXPORT_LOCK §8)
+  sessionPaths         (paths completos solo según SEED_PATH_REPLAY_EXPORT_LOCK: sesión en curso o generatorVersion no regenerable)
   decisionLogs
   journal
   evaluations
@@ -202,7 +207,7 @@ payload:
 Reglas de diseño:
 
 1. **Export:** generado bajo demanda desde "Ajustes → Exportar progreso"; se entrega vía share sheet del SO (Drive, archivos locales, etc.). Burgundy no sube nada a ningún servidor.
-2. **Import:** valida en orden — (a) JSON bien formado, (b) `formatVersion` soportada (con migradores de formato hacia adelante), (c) checksum correcto, (d) `pathHash` de cada path almacenado coincide al recalcular. Si algo falla, se rechaza con mensaje claro y **no** se toca la base actual.
+2. **Import:** valida en orden — (a) JSON bien formado, (b) `formatVersion` soportada (con migradores de formato hacia adelante), (c) checksum correcto, (d) `pathHash` de cada path almacenado coincide al recalcular. Si algo falla, se rechaza con el código y mensaje de la tabla de errores de `BURGUNDY_FILE_FORMAT_V1` y **no** se toca la base actual (validación completa → base temporal → promoción atómica, con backup automático previo obligatorio).
 3. **Estrategia de fusión:** el MVP usa **reemplazo total con confirmación explícita** ("esto sustituirá tu progreso actual") + backup automático previo del estado actual. Merge inteligente es post-MVP.
 4. **Privacidad:** el archivo no contiene datos personales — no hay login ni identidad; solo progreso pedagógico y de simulación.
 5. **Compatibilidad futura:** `formatVersion` independiente de `generatorVersion`; los migradores de import nunca se eliminan.
@@ -211,7 +216,18 @@ Reglas de diseño:
 
 ## 8. Decisión: ¿guardar paths completos, solo seeds, o ambos?
 
-**Decisión para el MVP: estrategia híbrida — siempre seed + metadatos; path completo solo cuando importa el replay exacto.**
+<!-- LOCK: SEED_PATH_REPLAY_EXPORT_LOCK v1 — Documento dueño: 08_technical_architecture.md. Resuelve AUD-005 y AUD-006. Los documentos 03, 06, 07, 09, 10, 12 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **SEED_PATH_REPLAY_EXPORT_LOCK v1 — Política única de seed, path, replay, export y visibilidad (cerrada).**
+>
+> 1. **`SeedRecord` siempre.** Todo path generado produce un `SeedRecord` (seed + `seedType` + `generatorVersion` + `templateId/Version` + `lccId/Version` + parámetros resueltos + `pathHash`). Se persiste siempre, nunca se purga mientras exista una sesión que lo referencie, y se exporta **siempre** en el archivo `.burgundy`.
+> 2. **`pathHash` siempre.** El SHA-256 de la serialización canónica del path (ver `DETERMINISM_LOCK_V1`, §9) se calcula y se sella **antes de la primera vela visible** de la sesión.
+> 3. **Materialización local del path.** El path completo solo se conserva materializado para: (a) la sesión activa y las sesiones recientes (ventana de las últimas 10 sesiones), y (b) los replays guardados explícitamente — incluidas las sesiones que entran a rankings. Todo lo demás es purgable y se regenera desde `seed + generatorVersion`.
+> 4. **Export del path completo.** El archivo `.burgundy` incluye el path completo de una sesión solo si: (a) la sesión está `en_curso`, o (b) su `generatorVersion` no es regenerable por el build actual (generador retirado/congelado). En cualquier otro caso viaja solo el `SeedRecord`; el dispositivo destino regenera el path y lo valida contra `pathHash`.
+> 5. **Replay.** Si existe path almacenado, el replay lo usa, validando su hash contra `SeedRecord.pathHash`. Si no existe, regenera con el generador de la `generatorVersion` registrada y valida el hash. **Hash no coincidente ⇒ sesión "no verificable":** se excluye de rankings, se informa al usuario con lenguaje claro y jamás se repara en silencio.
+> 6. **Visibilidad de seed en desafíos.** Antes del intento se muestran únicamente `pathHash`, `seedType`, `generatorVersion` y las reglas del LCC (el **sello de equidad**). La seed cruda se revela solo al cerrar el intento. Si la seed era conocida de antemano (replay, seed guardada, sesión previa con la misma seed), el intento se marca `seed_known = true` y **no es elegible para el ranking principal de primer intento**; conserva marcas personales separadas.
+
+**Decisión para el MVP: estrategia híbrida — siempre seed + metadatos; path completo solo cuando importa el replay exacto.** La tabla siguiente es la aplicación práctica del lock anterior.
 
 | Tipo de sesión | Qué se guarda | Por qué |
 |---|---|---|
@@ -264,9 +280,22 @@ seed + template + contract + params + generatorVersion
 [Cierre] Evaluation Engine · Replay Engine · Scenario Hash Validator
 ```
 
+<!-- LOCK: DETERMINISM_LOCK_V1 — Documento dueño: 08_technical_architecture.md. Resuelve AUD-007. Los documentos 03, 09, 10 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento y este lock, gana el lock. -->
+
+> **DETERMINISM_LOCK_V1 — Contrato ejecutable de determinismo (cerrado).**
+>
+> 1. **PRNG: PCG32.** Decisión cerrada; la alternativa xoshiro queda eliminada de toda la documentación. Implementado en el motor con aritmética entera; prohibidos `Math.random` y cualquier RNG del lenguaje o de la plataforma.
+> 2. **Seed: entero sin signo de 64 bits.** Representación canónica: decimal, sin ceros a la izquierda (`"0"` para cero), en toda serialización, export, UI técnica y entrada de hashing.
+> 3. **Substreams por subsistema (índices fijos):** `0` = régimen · `1` = velas · `2` = sub-ticks · `3` = eventos · `4` = spread · `5` = slippage · `6` = resolución de parámetros del template · `7` = reintentos de contrato (`seed + attempt`). Derivación según el esquema de streams de PCG32 (mismo estado inicial = seed; incremento del stream `k` = `2k + 1`). Un subsistema nuevo toma el siguiente índice libre; los existentes jamás se reordenan.
+> 4. **Precios: enteros escalados.** Cada instrumento declara `priceScale` (potencia de 10) en el catálogo del bundle (documento 09, `Instrument`); toda generación y ejecución opera sobre `precio × priceScale` como entero. **Prohibido punto flotante en el camino crítico de generación.**
+> 5. **Tiempo lógico:** índice de vela + índice de sub-tick. Sin reloj real, sin `Date.now()`, sin entropía externa. Sub-ticks por vela: **4–8 en MVP** (`MVP_SANDBOX_LIMITS`, documento 12); la cantidad exacta por vela la decide determinísticamente el stream 2.
+> 6. **Redondeo: half-even (banker's rounding)** sobre enteros escalados — regla única para toda división o promedio en generación y ejecución.
+> 7. **Serialización canónica del path (entrada exacta del SHA-256):** orden fijo de bloques (metadatos → velas → sub-ticks → eventos → spread → slippage), orden fijo de campos por registro definido por el esquema del motor y versionado con `generatorVersion`, codificación UTF-8, sin espacios ni saltos de línea, enteros en decimal, sin floats.
+> 8. **Corpus dorado:** lista versionada en el repo de (`templateId/Version`, `lccId/Version`, parámetros, seed) → `pathHash` esperado, por `generatorVersion`. CI la verifica en Node y Hermes (y en cada plataforma soportada) en cada commit; cualquier divergencia rompe el build.
+
 ### 9.1 Seeded Pseudo-Random Generator (PRNG)
 
-- Algoritmo entero, portable y rápido (familia PCG32 o xoshiro128**), implementado en el propio motor — nunca el RNG del lenguaje.
+- Algoritmo: **PCG32** (cerrado por `DETERMINISM_LOCK_V1`; sin alternativas), implementado en el propio motor — nunca el RNG del lenguaje.
 - Solo aritmética entera de 32 bits en el núcleo del PRNG: elimina el riesgo de divergencia de punto flotante entre runtimes.
 - **Streams derivados:** de la seed maestra se derivan sub-seeds independientes por subsistema (régimen, velas, ticks, eventos, spread). Así, cambiar el consumo de aleatoriedad de un subsistema no desincroniza a los demás.
 - La seed maestra se registra en la sesión; las sub-seeds son derivables y no se almacenan.
@@ -297,7 +326,7 @@ seed + template + contract + params + generatorVersion
 
 ### 9.6 Tick Approximation Generator
 
-- Para cada vela genera una secuencia corta de sub-pasos (8–16 puntos intra-vela) que recorre open → extremos → close de forma plausible.
+- Para cada vela genera una secuencia corta de sub-pasos (**4–8 puntos intra-vela en MVP** — `MVP_SANDBOX_LIMITS` y `DETERMINISM_LOCK_V1`) que recorre open → extremos → close de forma plausible.
 - Usos: animación de la vela en formación, y **evaluación de ejecución intra-vela** (en qué sub-paso se cruza un stop loss, un take profit o un límite), eliminando la ambigüedad "¿tocó primero el SL o el TP dentro de la vela?".
 - Pre-generado con el path: el replay reproduce exactamente las mismas ejecuciones.
 
@@ -314,7 +343,7 @@ seed + template + contract + params + generatorVersion
 ### 9.9 Market Path Builder
 
 - Ensambla la salida final inmutable: velas + sub-pasos + serie de spread + eventos + parámetros de slippage + metadatos (`templateId/Version`, `contractId/Version`, `seed`, `generatorVersion`).
-- Calcula el `pathHash` (SHA-256 de la serialización canónica del path).
+- Calcula el `pathHash` (SHA-256 de la serialización canónica del path, según `DETERMINISM_LOCK_V1` punto 7) y lo sella antes de la primera vela visible (`SEED_PATH_REPLAY_EXPORT_LOCK` punto 2).
 - Tras el build, el path es **estructuralmente inmutable**: ningún componente del runtime tiene una vía para modificarlo.
 
 ### 9.10 Scenario Hash Validator
@@ -361,7 +390,7 @@ Reglas:
 4. **Si el path completo fue almacenado**, las sesiones viejas se reproducen siempre, con cualquier versión de la app: el replay consume el path almacenado (verificado por hash), no el generador.
 5. **Si solo se almacenó la seed**, reproducir exige el generador original. El MVP incluye el módulo generador como componente versionado internamente (`generators/v1`, `generators/v2`…); se conservan las versiones necesarias mientras existan sesiones que solo tengan seed. La estrategia híbrida del §8 minimiza esta carga: todo lo que merece replay exacto guarda su path.
 6. Los rankings registran `generatorVersion`: scores de generadores distintos no compiten en la misma tabla si el cambio afectó la dificultad.
-7. CI mantiene un **corpus dorado**: lista fija de (template, contract, params, seed) → `pathHash` esperado por versión de generador. Cualquier divergencia rompe el build.
+7. CI mantiene un **corpus dorado**: lista fija de (template, contract, params, seed) → `pathHash` esperado por versión de generador. Cualquier divergencia rompe el build. (Normativo en `DETERMINISM_LOCK_V1` punto 8.)
 
 ---
 

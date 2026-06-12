@@ -551,6 +551,8 @@ Cada mensaje se asocia a: `regla_disparadora (MD/PD)`, `escenario`, `severidad`,
 
 **El P/L no es componente del Process Score.** Se muestra al lado, deliberadamente, para entrenar la disociación resultado/proceso.
 
+> **Integración cerrada por `SCORING_V1_LOCK` (documento 11):** el Process Score **no es un sistema de scoring paralelo**. Se implementa como el `scoringProfile` `senales_proceso` sobre las 7 categorías del sistema único de evaluación (Gestión de riesgo 30 → Gestión de riesgo · Invalidación 25 → Disciplina · Calidad de entrada 20 → Calidad de proceso · Disciplina de salida 15 → Disciplina + Consistencia · Juicio de selección 10 → Paciencia · Rentabilidad 0). Las fórmulas, thresholds y predicados son los del lock; este documento solo define el contenido pedagógico. Ante contradicción, gana el lock.
+
 ### 10.2 Métricas secundarias del módulo
 
 - **Tasa de abstención justificada:** señales rechazadas con razón válida / señales con R/R destruido presentadas.
@@ -590,13 +592,15 @@ Notas de diseño:
 
 ## 12. Versión MVP del módulo
 
+> **Alcance cerrado por `MVP_CONTENT_LOCK` (documento 12, sección 3).** Las 4 lecciones MVP de este módulo se empaquetan en las lecciones M5.1 (L1 + L3) y M5.2 (L4 + L5) del MVP. El challenge "Cazador de señales" se integra como mini-desafío dentro de M5 y **no** amplía el set canónico de 6 challenges del MVP. La lección L4 (apalancamiento) es **conceptual**: el leverage no es mecánica jugable del MVP y su escenario corre con parámetros fijos empaquetados (`LEVERAGE_MVP_LIMITS`, documento 12, sección 5). Ante contradicción entre este documento y esos locks, ganan los locks.
+
 Para el MVP de Burgundy, el módulo se reduce a lo esencial sin perder la tesis:
 
 **Incluye:**
 1. **4 lecciones** (no 8): L1 (misma señal, dos destinos), L3 (llegaste tarde), L4 (apalancamiento), L5 (sin invalidación). Cubren las cuatro causas de fallo más frecuentes en LATAM.
 2. **6 escenarios**: E1, E2, E3, E5, E8, E9 (los imprescindibles para la tesis proceso/resultado y abstención).
 3. **Detector de errores reducido**: MD-01, MD-02, MD-03, MD-05, MD-07 + PD-01, PD-02, PD-07.
-4. **Process Score completo** (la fórmula 10.1 entera; es el corazón y no es costoso).
+4. **Process Score completo** (la fórmula 10.1 entera, implementada como `scoringProfile` `senales_proceso` del sistema único de scoring — `SCORING_V1_LOCK`, documento 11).
 5. **1 challenge**: "Cazador de señales" con una sola seed.
 6. **Replay básico**: repetir escenario con la misma seed (sin fantasma superpuesto).
 7. Feedback en revisión post-escenario (sin feedback en tiempo real).

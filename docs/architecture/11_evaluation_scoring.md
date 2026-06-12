@@ -80,15 +80,42 @@ Consecuencias directas:
 
 ---
 
+## 2 bis. Contrato ejecutable `scoring_v1`
+
+<!-- LOCK: SCORING_V1_LOCK v1 — Documento dueño: 11_evaluation_scoring.md. Resuelve AUD-008. Los documentos 05, 10 y 13 referencian este lock por nombre, sin copiarlo. Ante contradicción entre cualquier documento (incluidas las fórmulas conceptuales de la sección 3 de este mismo documento) y este lock, gana el lock. -->
+
+> **SCORING_V1_LOCK v1 — Sistema de scoring ejecutable (cerrado).**
+>
+> 1. **Fórmulas por tramos (sustituyen toda "curva en S" conceptual).** Cada métrica se normaliza a 0–100 mediante funciones lineales por tramos con puntos de quiebre numéricos; interpolación lineal entre puntos; valores fuera de rango se recortan (clamp). Tramos canónicos del MVP:
+>    - **Total return** (`R`, % sobre capital inicial): `R ≤ −20 → 0` · `R = −5 → 30` · `R = 0 → 50` · `R = +5 → 75` · `R = +10 → 90` · `R ≥ +20 → 100` (saturación: ganar más no suma más).
+>    - **Retorno ajustado por riesgo** (`MAR = R / max(maxDrawdown, 2)`, ambos en %): `MAR ≤ 0 → score de Total return × 0.8` · `MAR = 0.5 → 55` · `MAR = 1 → 70` · `MAR = 2 → 90` · `MAR ≥ 3 → 100`. Es la métrica principal de Rentabilidad.
+>    - **Max drawdown** (`DD` en %, contra el umbral `U` del escenario declarado en su LCC): `DD = 0 → 100` · `DD = U/2 → 80` · `DD = U → 50` · `DD = 1.5·U → 20` · `DD ≥ 2·U → 0`.
+>    - **Average win/loss** (`W`): `W < 0.5 → 20` · `W = 1.0 → 50` · `W = 1.5 → 75` · `W ≥ 2.0 → 100`. Con < 3 trades cerrados, la métrica se omite y su peso se redistribuye proporcionalmente dentro de la categoría.
+>    - **Consistencia de R:R** (`σ` = desviación estándar del R:R planeado): `σ ≤ 0.25 → 100` · `σ = 0.5 → 80` · `σ = 1.0 → 50` · `σ ≥ 2.0 → 0`. Requiere ≥ 5 trades; si no, neutro (50).
+>    - **Concentración del P/L** (mejor trade / P/L positivo total): `≤ 40% → sin recorte` · `= 60% → −15 puntos a Rentabilidad` · `≥ 80% → −30 puntos`. Interpolación lineal entre quiebres.
+>    - **Supervivencia:** terminó la sesión con equity > umbral de blow-up y nunca lo tocó → 100; terminó pero con `DD ≥ 0.8·U` en algún momento → 60; blow-up → 0 (y cap F).
+> 2. **Thresholds por escenario.** Todo N/M/K vive resuelto en el `scoringProfile` del LCC de cada escenario MVP. Defaults canónicos si el LCC no los redefine: `ERR_NO_SL`: N = 3 velas · `ERR_REVENGE`: reentrada en M ≤ 5 velas tras pérdida con tamaño ≥ 1.5× · `ERR_CHASE`: entrada a mercado tras ≥ 8 velas direccionales sin retroceso y a > 1.5 × ATR(14) del último pullback · entrada impulsiva: apertura en < 3 velas desde el inicio de sesión sin setup válido · overtrading: trades > rango esperado del path (dato del LCC, resuelto por seed) · racha de disciplina: 5 trades consecutivos dentro de regla.
+> 3. **Predicados operativos sobre el decision log:**
+>    - **"Setup válido":** antes de la orden existe en el decision log (a) un nivel marcado por el usuario o una señal aceptada/rechazada explícitamente, o (b) una entrada dentro de una ventana de oportunidad declarada por el LCC del path; y la orden lleva stop loss definido al abrir y R:R planeado ≥ 1.
+>    - **"Oportunidad válida":** ventana `[velaInicio, velaFin]` declarada en el LCC del escenario (resuelta por seed) durante la cual se cumple el predicado de entrada del template. El número de oportunidades válidas de un path es **dato del escenario**, nunca estimación del evaluador.
+> 4. **Pesos.** Todo `scoringProfile` asigna pesos enteros a las 7 categorías con suma **exactamente 100**; Rentabilidad ≤ 25 siempre. Los perfiles de la sección 2.2 son los canónicos del MVP.
+> 5. **Abstención y no operar.** En escenarios con trampa declarada, la abstención justificada (`no_operar_deliberado` en el decision log o razón en journal) puntúa Paciencia = 100 y Proceso ≥ 85. En escenarios con flag `requiresExecution` en su LCC, cero trades sin abstenciones justificadas ⇒ Proceso y Paciencia con tope 40. En el resto de escenarios, no operar es neutro.
+> 6. **Caps de grade integrados a la fórmula** (sección 4): se aplican **después** de ponderar, como techo del score total — blow-up ⇒ F (score ≤ 39) · > 50% de trades sin stop ⇒ máx. C (≤ 69) · violación del objetivo de la lección ⇒ máx. C · revenge trading 2+ veces ⇒ máx. C.
+> 7. **Eventos requeridos del decision log.** Cada regla declara los eventos que necesita (apertura/cierre/cancelación de orden, modificación de SL/TP, cambio de tamaño, `no_operar_deliberado`, aceptación/rechazo de señal, marca de nivel). Si el evento no existe en el log, la regla no se evalúa: nada se infiere.
+> 8. **Process Score = perfil, no sistema paralelo.** El Process Score del documento 05 se implementa como el `scoringProfile` **`senales_proceso`** sobre las mismas 7 categorías: Gestión de riesgo 30 → Gestión de riesgo · Invalidación 25 → Disciplina · Calidad de entrada 20 → Calidad de proceso · Disciplina de salida 15 → Disciplina (5) + Consistencia (10) · Juicio de selección 10 → Paciencia · Rentabilidad 0 · Supervivencia 10 ya contenida vía caps. Un solo motor de scoring para toda la app; el documento 05 no define fórmulas propias.
+> 9. **Casos dorados.** Por cada seed fija del MVP (15 lecciones, 6 challenges, 6 escenarios anti-señales) el repo versiona al menos un caso dorado: decision log de prueba → score por categoría, score total y grade **exactos** esperados. CI los verifica en cada commit, igual que el corpus dorado de hashes (`DETERMINISM_LOCK_V1`, documento 08).
+
+---
+
 ## 3. Métricas y fórmulas conceptuales
 
-Todas las fórmulas son conceptuales (sin código). Cada métrica se normaliza a una escala 0–100 antes de entrar a su categoría.
+Las fórmulas de esta sección son la explicación conceptual; **su forma ejecutable está cerrada por `SCORING_V1_LOCK` (sección 2 bis)** — ante diferencia, gana el lock. Cada métrica se normaliza a una escala 0–100 antes de entrar a su categoría.
 
 ### 3.1 Métricas de resultado
 
 | Métrica | Definición conceptual | Normalización conceptual |
 |---|---|---|
-| **Total return** | (Equity final − Equity inicial) / Equity inicial | Curva en S: retornos negativos castigan, retornos altísimos saturan (no dan score infinito) |
+| **Total return** | (Equity final − Equity inicial) / Equity inicial | Función por tramos con saturación (puntos de quiebre exactos en `SCORING_V1_LOCK` punto 1): retornos negativos castigan, retornos altísimos saturan |
 | **Retorno ajustado por riesgo** | Total return / max drawdown del periodo (concepto tipo "MAR ratio" simplificado). Si el drawdown es casi cero, se usa un piso mínimo de drawdown para evitar divisiones absurdas | Es la métrica de rentabilidad **principal**: 8% con 4% de drawdown (ratio 2.0) supera a 40% con 38% de drawdown (ratio ~1.05) |
 | **Max drawdown** | Mayor caída porcentual de la equity desde su punto más alto (explicado al usuario: "cuánto cayó tu cuenta desde su mejor momento") | Score alto con drawdown bajo; cae rápido pasado el umbral del escenario (p. ej. >15%) |
 | **Crecimiento sostenible** | El retorno proviene de muchos trades moderados y no de uno o dos trades gigantes. Conceptualmente: porcentaje del P/L total aportado por el mejor trade. Si un solo trade explica >60% de la ganancia, no es sostenible | Reduce el score de Supervivencia/Rentabilidad cuando la ganancia depende de un golpe de suerte |
@@ -112,7 +139,7 @@ Todas las fórmulas son conceptuales (sin código). Cada métrica se normaliza a
 
 ### 3.3 Cómo se detectan los errores desde el decision log
 
-Toda decisión del usuario queda registrada con timestamp de vela, estado de cuenta y contexto: abrir, cerrar, modificar stop/target, cambiar tamaño, cambiar leverage, saltar un trade, aceptar/rechazar una señal. La detección de errores es **determinista sobre ese log**, nunca subjetiva:
+Toda decisión del usuario queda registrada con timestamp de vela, estado de cuenta y contexto: abrir, cerrar, modificar stop/target, cambiar tamaño, cambiar leverage, saltar un trade, aceptar/rechazar una señal. La detección de errores es **determinista sobre ese log**, nunca subjetiva. Los valores de N/M/K de la tabla siguiente quedan resueltos por escenario en su LCC, con los defaults canónicos de `SCORING_V1_LOCK` punto 2:
 
 | Error | Regla de detección conceptual |
 |---|---|
@@ -148,7 +175,7 @@ Reglas duras (caps) que ningún peso puede esquivar:
 - **Operar sin stop loss en más del 50% de los trades** → grade máximo C.
 - **Violación directa del objetivo de la lección** (p. ej. entrar en una trampa FOMO diseñada para no entrar) → grade máximo C en esa sesión.
 - **Revenge trading detectado 2+ veces en la sesión** → grade máximo C.
-- Estos topes existen para que el sistema sea **difícil de explotar**: ganar mucho no compra una buena nota.
+- Estos topes existen para que el sistema sea **difícil de explotar**: ganar mucho no compra una buena nota. Su integración exacta a la fórmula (techos aplicados después de ponderar) está cerrada en `SCORING_V1_LOCK` punto 6.
 
 ---
 

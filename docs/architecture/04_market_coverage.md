@@ -25,15 +25,18 @@ Cada mercado en Burgundy no existe para "operar más activos", sino porque **ens
 | Mercado | ¿En MVP? | Rol educativo principal | Riesgo para principiantes |
 |---|---|---|---|
 | Mercados sintéticos educativos | ✅ Sí (es la base) | Enseñar mecánica pura sin sesgo de activo | Bajo (entorno controlado) |
-| Acciones (Stocks) | ✅ Sí | Gaps, tendencias, soportes/resistencias, shocks tipo earnings | Medio |
-| Forex | ✅ Sí | Sesiones, spread variable, apalancamiento, valor del pip | Alto |
-| Cripto | ✅ Sí (desbloqueado tarde) | Volatilidad extrema, FOMO, liquidaciones, fin de semana | Muy alto |
-| Índices | ✅ Sí | Movimiento macro, seguimiento de tendencia, riesgo ajustado | Medio |
+| Acciones (Stocks) | ✅ Sí (`synthetic_stock`) | Gaps, tendencias, soportes/resistencias, shocks tipo earnings | Medio |
+| Forex | ✅ Sí (`synthetic_fx`) | Sesiones, spread variable, valor del pip; el apalancamiento se enseña solo conceptualmente en MVP | Alto |
+| Cripto | ✅ Sí (`synthetic_crypto`, desbloqueado tarde) | Volatilidad extrema, FOMO, liquidaciones, fin de semana | Muy alto |
+| Índices | ⚠️ Post-MVP temprano | Movimiento macro, seguimiento de tendencia, riesgo ajustado | Medio |
 | Materias primas (Commodities) | ⚠️ Post-MVP temprano | Shocks de eventos, narrativas de oferta/demanda | Medio-alto |
 | Futuros | ❌ Futuro (si es viable) | Margen avanzado, tamaño de contrato, tick value, liquidación | Muy alto |
 
-**Orden de introducción en modo progresión:**
+> **Alcance MVP cerrado por `MVP_MARKET_LOCK` (documento 12, sección 4):** base `synthetic_training` + 3 instrumentos jugables (`synthetic_fx`, `synthetic_stock`, `synthetic_crypto` con desbloqueo tardío). Índices y commodities son post-MVP temprano. El leverage no es mecánica jugable del MVP (`LEVERAGE_MVP_LIMITS`, documento 12, sección 5). Ante contradicción entre este documento y esos locks, ganan los locks.
+
+**Orden de introducción en modo progresión (ruta completa del producto):**
 Sintético → Acciones → Índices → Forex → Cripto → Commodities → Futuros.
+En el MVP, la ruta activa es el subconjunto: Sintético → Acciones → Forex → Cripto; Índices se inserta en su posición cuando llegue post-MVP.
 
 La justificación detallada está en la sección 5.
 
@@ -140,9 +143,9 @@ Cada mercado se describe con dos bloques: **(A) ficha educativa** y **(B) compor
 | **Riesgo para principiantes** | Alto, casi siempre por **apalancamiento mal dimensionado**, no por el mercado en sí. |
 | **Malentendido común** | "Con apalancamiento 1:500 y $50 puedo vivir del trading." También: confundir pips con dinero sin entender el valor del pip según el tamaño de la posición, y copiar señales sin contexto ni stop. |
 | **Mejor ejercicio en el simulador** | Desafío de "misma señal, tres tamaños de posición": la misma entrada gana con riesgo del 1% y revienta la cuenta con riesgo del 20%. Lección directa contra la cultura de señales de Telegram/TikTok. |
-| **¿Pertenece al MVP?** | **Sí.** Es demasiado relevante para LATAM como para dejarlo fuera, pero se desbloquea después de acciones e índices. |
+| **¿Pertenece al MVP?** | **Sí.** Es demasiado relevante para LATAM como para dejarlo fuera, pero se desbloquea después de acciones (índices es post-MVP). |
 | **Requisito de desbloqueo** | Completar el módulo de gestión de riesgo avanzada (tamaño de posición, riesgo por operación, drawdown) y los tutoriales de acciones. |
-| **Disponible en modo libre** | Sí tras desbloqueo; en modo libre puro, disponible con apalancamiento limitado por defecto y advertencia educativa. |
+| **Disponible en modo libre** | Sí tras desbloqueo; en modo libre puro, disponible con advertencia educativa. En MVP sin apalancamiento jugable (`LEVERAGE_MVP_LIMITS`); el leverage limitado por defecto llega en Fase 5. |
 
 #### B. Seeds y Learning Context Contracts
 
@@ -180,7 +183,7 @@ Cada mercado se describe con dos bloques: **(A) ficha educativa** y **(B) compor
 | **Malentendido común** | "Si sube fuerte, hay que entrar ya" (FOMO); "el apalancamiento 20x multiplica mis ganancias" (omitiendo que una caída del 5% liquida la posición); confundir un mercado alcista con habilidad propia. |
 | **Mejor ejercicio en el simulador** | Desafío "FOMO trap": vela verde gigante pre-generada seguida de reversión; el score premia **no entrar** o entrar con riesgo controlado. Desafío de liquidación: demostrar matemáticamente en vivo cómo 20x convierte un retroceso normal en cuenta quemada. |
 | **¿Pertenece al MVP?** | **Sí**, pero como mercado de desbloqueo tardío: llegar a cripto debe sentirse como un logro de disciplina, no como el punto de partida. |
-| **Requisito de desbloqueo** | Completar Forex (apalancamiento + sesiones) y el módulo de psicología (FOMO, overtrading, revenge trading). |
+| **Requisito de desbloqueo** | Completar Forex (sesiones + spread variable; el apalancamiento solo se enseña conceptualmente en MVP — `LEVERAGE_MVP_LIMITS`) y las lecciones de disciplina del MVP (FOMO, overtrading, revenge trading en M4/M5). |
 | **Disponible en modo libre** | Sí tras desbloqueo. En modo libre puro, disponible con advertencia destacada (énfasis en `#C9A050`) sobre su rol como mercado de mayor riesgo del simulador. |
 
 #### B. Seeds y Learning Context Contracts
@@ -218,7 +221,7 @@ Cada mercado se describe con dos bloques: **(A) ficha educativa** y **(B) compor
 | **Riesgo para principiantes** | Medio. La trampa es la complacencia: "el índice siempre sube" funciona hasta el día de pánico. |
 | **Malentendido común** | "Operar el índice es seguro porque está diversificado." La diversificación reduce el riesgo de una empresa, no el riesgo de mercado ni el de apalancarse mal. |
 | **Mejor ejercicio en el simulador** | Escenario de tendencia macro de varias semanas comprimidas para practicar mantener una posición ganadora (dejar correr) con trailing del riesgo; desafío de "día de pánico" para practicar reducción de exposición. |
-| **¿Pertenece al MVP?** | **Sí.** Complementa a acciones con bajo costo de implementación (mismo motor, parámetros distintos). |
+| **¿Pertenece al MVP?** | ⚠️ **No — post-MVP temprano** (movido fuera del MVP por `MVP_MARKET_LOCK`, documento 12). Sigue siendo el complemento natural de acciones con bajo costo de implementación (mismo motor, parámetros distintos); es el primer candidato a entrar tras el MVP junto con commodities. |
 | **Requisito de desbloqueo** | Completar los tutoriales de acciones (soporte/resistencia y gaps). |
 | **Disponible en modo libre** | Sí tras desbloqueo; disponible en modo libre puro con introducción breve. |
 
@@ -340,7 +343,7 @@ Esto garantiza: offline-first total, reproducibilidad (replays, rankings compara
 |---|---|---|
 | 1 | **Sintético** | Primero y obligatorio. Enseña la mecánica (velas, órdenes, stop, riesgo, P/L) sin la carga emocional ni las ideas preconcebidas de un activo conocido. Es imposible "tener una opinión sobre el activo", así que toda la atención va al proceso. |
 | 2 | **Acciones** | El concepto más intuitivo para LATAM ("comprar parte de una empresa"). Introduce horarios, gaps y soporte/resistencia con volatilidad contenida. |
-| 3 | **Índices** | Extiende acciones hacia el pensamiento macro con bajo riesgo incremental. Enseña tendencia persistente y la asimetría subida-lenta / caída-rápida. |
+| 3 | **Índices** *(post-MVP)* | Extiende acciones hacia el pensamiento macro con bajo riesgo incremental. Enseña tendencia persistente y la asimetría subida-lenta / caída-rápida. Entra a la progresión cuando llegue post-MVP (`MVP_MARKET_LOCK`). |
 | 4 | **Forex** | Introduce sesiones de 24h, spread variable, pips y — sobre todo — apalancamiento. Llega cuando el usuario ya domina riesgo por operación, justo antes del territorio donde más se quema el principiante LATAM. |
 | 5 | **Cripto** | Volatilidad extrema, FOMO y liquidaciones. Se entrega tarde a propósito: llegar a cripto en Burgundy es un logro de disciplina, lo contrario del camino habitual del principiante real (que empieza aquí y se quema). |
 | 6 | **Commodities** | Shocks externos y narrativas de oferta/demanda. Requiere madurez previa en macro (índices) y eventos (Forex). |
@@ -349,6 +352,7 @@ Esto garantiza: offline-first total, reproducibilidad (replays, rankings compara
 ### Mercados que se retrasan deliberadamente
 
 - **Cripto** se retrasa aunque sea el mercado que más atrae al público objetivo. Es una decisión pedagógica central: invertir el orden típico del principiante real (cripto primero, disciplina nunca).
+- **Índices** se retrasa a post-MVP temprano por priorización de alcance (`MVP_MARKET_LOCK`), no por riesgo ni por costo de motor: reutiliza el motor con parámetros distintos y entra junto a commodities en la primera ola post-MVP.
 - **Commodities** se retrasa por priorización de contenido, no por riesgo: el motor lo soporta, pero las plantillas de shock requieren diseño cuidadoso.
 - **Futuros** se retrasa por complejidad del motor de cuenta (margen de mantenimiento, tick value, rollover) y por riesgo educativo.
 
@@ -388,7 +392,7 @@ Burgundy es **historical-ready**: la arquitectura de seeds y LCC permite incorpo
 
 ## 8. Resumen ejecutivo
 
-- Burgundy cubre 7 tipos de mercado; **5 en MVP** (sintético, acciones, índices, Forex, cripto), commodities como post-MVP temprano y futuros como fase futura.
+- Burgundy cubre 7 tipos de mercado; **4 en MVP** según `MVP_MARKET_LOCK` (sintético como base + acciones, Forex y cripto como instrumentos jugables), índices y commodities como post-MVP temprano, y futuros como fase futura.
 - Cada mercado existe por su **lección única**: sintético enseña mecánica, acciones enseñan gaps y estructura, índices enseñan macro y paciencia, Forex enseña sesiones y apalancamiento, cripto enseña control emocional, commodities enseñan shocks externos, futuros enseñan riesgo profesional.
 - El orden de progresión **invierte deliberadamente el camino típico del principiante LATAM**: cripto y el apalancamiento alto llegan al final, como logro de disciplina, no como punto de partida.
 - Todos los mercados se simulan con **un único motor generativo parametrizado**, con caminos pre-generados por seed determinística y eventos insertados antes de cualquier acción del usuario. Sin datos de broker, sin manipulación post-entrada, offline-first.

@@ -27,15 +27,17 @@ El Sandbox es el espacio de práctica libre de Burgundy. El usuario configura su
 
 ### 1.1 Tabla de configuración
 
+> **Alcance MVP cerrado por `MVP_SANDBOX_LIMITS`, `MVP_MARKET_LOCK` y `LEVERAGE_MVP_LIMITS` (documento 12).** La tabla siguiente describe el sandbox completo del producto; la columna de notas marca qué queda fuera del MVP. Ante contradicción, ganan los locks.
+
 | Opción | Valores | Notas |
 |---|---|---|
-| **Tipo de mercado** | Forex sintético, índice sintético, cripto sintético, acción sintética | Según cobertura definida en `04_market_coverage.md`. Histórico queda como fuente futura, no MVP. |
+| **Tipo de mercado** | Forex sintético, acción sintética, cripto sintética | Set MVP cerrado por `MVP_MARKET_LOCK` (documento 12); índice sintético es post-MVP. Histórico queda como fuente futura, no MVP. |
 | **Capital inicial** | Presets LATAM-realistas: 100, 500, 1.000, 5.000, 10.000, 100.000 (unidades de cuenta simuladas) | Los montos pequeños (100–1.000) existen a propósito: el usuario LATAM promedio empieza con poco capital y debe ver cómo se siente el riesgo real a esa escala. |
 | **Dificultad** | Iniciación, Estándar, Avanzada, Hostil | Escala volatilidad, frecuencia de fakeouts, ruido, severidad de eventos, spread y slippage. |
-| **Horizonte temporal** | Intradía, 1 semana, 1 mes, 3 meses, 6 meses, 1 año, 2 años | Define la duración del camino generado. Horizontes largos habilitan desafíos de interés compuesto y control de drawdown. |
+| **Horizonte temporal** | **MVP: Intradía, 1 semana.** Post-MVP (Fase 3+): 1 mes, 3 meses, 6 meses, 1 año, 2 años | Define la duración del camino generado (`MVP_SANDBOX_LIMITS`, documento 12). Los horizontes largos habilitan los desafíos de interés compuesto y control de drawdown, ambos post-MVP. |
 | **Velocidad de reproducción** | Pausa, 1x, 2x, 5x, 10x, salto a siguiente vela, salto a siguiente checkpoint | La velocidad nunca altera el camino: solo cambia el ritmo de reproducción de un camino ya generado. |
 | **Indicadores** | Activados (set desbloqueado) / Desactivados (modo precio puro / raw price action) | Desactivar indicadores es una opción de entrenamiento seria, no un castigo. |
-| **Apalancamiento (leverage)** | Desactivado / Activado con límite por nivel | Solo si está desbloqueado por progresión, o sin restricción en Modo Libre. Siempre acompañado de su explicación: controlar una posición más grande con menos capital, aumentando riesgo y retorno potencial. |
+| **Apalancamiento (leverage)** | **No disponible en MVP (siempre 1x), incluso en Modo Libre** (`LEVERAGE_MVP_LIMITS`, documento 12). Post-MVP (Fase 5): activado con límite por nivel | Cuando llegue, solo desbloqueado por progresión y siempre acompañado de su explicación: controlar una posición más grande con menos capital, aumentando riesgo y retorno potencial. |
 | **Pistas de tutorial (hints)** | Activadas / Desactivadas | Con hints activados la sesión es válida pero se marca como "asistida" y no compite en personal bests de seed. |
 | **Seed** | Aleatoria (default), manual (ingresar/reusar una seed guardada) | Ver lógica completa de seeds en la sección 11. |
 
@@ -46,8 +48,8 @@ Dentro de una sesión de Sandbox el usuario puede:
 - Operar libremente: comprar, vender, abrir y cerrar posiciones, usar stop loss, take profit y órdenes pendientes según lo desbloqueado.
 - Usar o desactivar indicadores en cualquier momento (el cambio queda registrado en el decision log; una sesión cuenta como "sin indicadores" solo si jamás los activó).
 - Pausar, acelerar o retroceder la reproducción para revisión visual (retroceder es solo lectura: no se puede "des-ejecutar" una orden).
-- Guardar la sesión en cualquier punto y retomarla después.
-- Exportar la sesión a archivo e importarla en otro dispositivo o tras reinstalar.
+- Guardar la sesión en cualquier punto y retomarla después *(post-MVP, Fase 3+ — `MVP_SANDBOX_LIMITS`; en MVP los horizontes son cortos y la sesión se completa o se descarta)*.
+- Exportar la sesión a archivo e importarla en otro dispositivo o tras reinstalar *(post-MVP, Fase 3+ — en MVP la portabilidad es vía export del progreso completo `.burgundy`)*.
 - Revisar el historial completo de trades de la sesión y de sesiones pasadas.
 - Generar una seed aleatoria nueva, guardar la seed actual, reproducir una seed previa, reiniciar la misma seed tras quebrar la cuenta, o cambiar de seed para obtener un camino de mercado nuevo e independiente.
 
@@ -77,13 +79,15 @@ Cada desafío es un escenario con **seed fija**, plantilla fija, Learning Contex
 
 Nota sobre la trampa de señales: las "señales" del desafío forman parte del **event schedule** generado con la seed fija. No son manipulación del precio post-entrada: son información sembrada de antemano, igual para todos los intentos. Algunas señales coinciden con movimientos reales del camino y otras no — exactamente como en la vida real.
 
+> **Set de challenges del MVP (cerrado por `MVP_CONTENT_LOCK`, documento 12):** Supervivencia 50 velas · Riesgo de hierro · Sin indicadores · Paciencia · Stop obligatorio · Costos reales. La tabla anterior describe los **tipos** de desafío del producto completo; los tipos 6 (trampa de señales), 7 (interés compuesto 1–2 años) y 8 (control de drawdown como challenge rankeado) son post-MVP (ver sección 13). Criterio de éxito del MVP: completar al menos 3 de los 6.
+
 ---
 
 ## 3. Reglas de los desafíos
 
 Reglas comunes a todo Challenge Mode:
 
-1. **Seed fija y sellada.** Cada desafío tiene una seed inmutable, visible para el usuario (junto con el hash del camino) como sello de equidad: "este mercado es el mismo para cada intento".
+1. **Seed fija y sellada.** Cada desafío tiene una seed inmutable. El **sello de equidad** que se muestra antes del intento es `pathHash` + `seedType` + `generatorVersion` + reglas del LCC — **nunca la seed cruda**, que se revela solo al cerrar el intento (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08): "este mercado es el mismo para cada intento, y nadie pudo estudiarlo antes".
 2. **Configuración bloqueada.** En desafíos el usuario no elige mercado, capital, dificultad ni horizonte: vienen definidos por el desafío.
 3. **Reglas visibles antes de iniciar.** Todo desafío muestra: objetivo, restricciones, condiciones de fallo, categorías de puntaje y umbral de aprobación, antes del primer tick.
 4. **Sin hints.** Los desafíos siempre corren sin pistas de tutorial.
@@ -99,7 +103,7 @@ Reglas comunes a todo Challenge Mode:
 | Condición | Aplica en | Efecto |
 |---|---|---|
 | **Cuenta en cero o quiebra (blow-up)** | Sandbox y desafíos | La sesión termina de inmediato. Se muestra la revisión de errores. El usuario puede reiniciar (misma seed) o empezar de nuevo (nueva seed en Sandbox). |
-| **Margin call / margen insuficiente** | Sesiones con apalancamiento | Cierre forzoso de posiciones según el motor de órdenes; si la equity queda bajo el mínimo, equivale a quiebra. |
+| **Margin call / margen insuficiente** | Sesiones con apalancamiento *(en MVP solo el escenario educativo de sobreapalancamiento con parámetros fijos — `LEVERAGE_MVP_LIMITS`; sesiones con apalancamiento general: Fase 5)* | Cierre forzoso de posiciones según el motor de órdenes; si la equity queda bajo el mínimo, equivale a quiebra. |
 | **Violación de regla del desafío** | Solo desafíos | Intento marcado como fallido al instante, con explicación pedagógica de qué regla se rompió y por qué existe esa regla. |
 | **Drawdown máximo tocado** | Desafíos de drawdown (y Sandbox si el usuario activa un límite voluntario) | Fin de sesión. La revisión enfatiza en qué punto el riesgo acumulado se volvió insostenible. |
 | **Tiempo de simulación agotado sin objetivo** | Desafíos con objetivo (supervivencia, compuesto) | El motor de evaluación califica con lo logrado; si no se alcanzó el objetivo mínimo, el intento falla pero igual genera retroalimentación. |
@@ -130,6 +134,7 @@ El reinicio nunca borra evidencia: la quiebra es uno de los eventos más educati
 3. Si lo supera, el nuevo registro pasa a ser el high score; el anterior se conserva en el historial como intento, no se destruye.
 4. Empates: se conserva el más antiguo (lograrlo primero vale; repetirlo no lo reemplaza).
 5. Los intentos asistidos (hints activados) o en Modo Libre con parámetros fuera de las reglas del desafío **no compiten** por high scores de desafío; pueden guardar marcas personales separadas etiquetadas como "libre/asistido".
+5 bis. Los intentos con seed conocida de antemano (replay, seed guardada, sesión previa con la misma seed) se marcan `seed_known = true` y **no son elegibles para el ranking principal de primer intento** (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08); conservan marcas personales separadas.
 6. Un high score guarda el contexto completo de cómo se logró:
 
 | Campo del registro de high score | Descripción |
@@ -159,13 +164,13 @@ Los rankings de Burgundy son **locales y por sesión**: sin login, sin nube, sin
 
 ### 7.1 Claves de ranking
 
-Se guarda el mejor puntaje por cada combinación relevante:
+Se guarda el mejor puntaje por cada combinación relevante. **En MVP solo existen las claves "por desafío" y "por seed de Sandbox guardada" (`MVP_SANDBOX_LIMITS`, documento 12); las demás son post-MVP.**
 
-- **Por desafío** (`challenge_id`): el high score canónico de cada desafío, justo porque la seed es fija.
-- **Por mercado**: mejor desempeño del usuario en forex, índice, cripto y acción sintéticos.
-- **Por horizonte temporal**: mejor intradía, mejor mes, mejor año, etc.
-- **Por dificultad**: mejor marca en Iniciación, Estándar, Avanzada y Hostil.
-- **Por seed de Sandbox guardada**: personal best específico de cada seed que el usuario decidió guardar y repetir.
+- **Por desafío** (`challenge_id`): el high score canónico de cada desafío, justo porque la seed es fija. *(MVP)*
+- **Por seed de Sandbox guardada**: personal best específico de cada seed que el usuario decidió guardar y repetir. *(MVP)*
+- **Por mercado**: mejor desempeño del usuario en forex, cripto y acción sintéticos. *(Post-MVP)*
+- **Por horizonte temporal**: mejor intradía, mejor mes, mejor año, etc. *(Post-MVP)*
+- **Por dificultad**: mejor marca en Iniciación, Estándar, Avanzada y Hostil. *(Post-MVP)*
 
 ### 7.2 Reglas estructurales
 
@@ -200,9 +205,9 @@ En el modo de progresión, las opciones se ganan demostrando comprensión, aline
 |---|---|
 | Sandbox básico (mercado inicial, intradía, sin leverage, dificultad Iniciación) | Completar el tutorial guiado fundamental |
 | Mercados adicionales | Completar el módulo del currículo correspondiente a cada mercado |
-| Horizontes largos (3 meses a 2 años) | Demostrar gestión de riesgo básica en horizontes cortos |
+| Horizontes largos (1 mes a 2 años) *(post-MVP, Fase 3+ — `MVP_SANDBOX_LIMITS`)* | Demostrar gestión de riesgo básica en horizontes cortos |
 | Dificultades Avanzada y Hostil | High scores mínimos en la dificultad anterior |
-| Apalancamiento (límites crecientes) | Aprobar la lección de leverage + desafío de disciplina de riesgo correspondiente |
+| Apalancamiento (límites crecientes) *(post-MVP, Fase 5 — `LEVERAGE_MVP_LIMITS`)* | Aprobar la lección de leverage + desafío de disciplina de riesgo correspondiente |
 | Desafíos de habilidad | Lección asociada completada |
 | Desafíos de supervivencia y drawdown | Nivel de XP mínimo + desafío de riesgo aprobado |
 | Modo sin indicadores como desafío rankeado | Sesiones de Sandbox sin indicadores completadas |
@@ -215,7 +220,7 @@ El mensaje pedagógico del desbloqueo: en Burgundy el apalancamiento y los merca
 
 El Modo Libre existe para usuarios que no quieren la progresión o que ya saben lo que hacen:
 
-- Acceso inmediato a todos los mercados, horizontes, dificultades y al apalancamiento, **sin** desbloqueos.
+- Acceso inmediato a todos los mercados, horizontes y dificultades disponibles en la fase actual del producto, **sin** desbloqueos. En MVP eso significa los 3 instrumentos de `MVP_MARKET_LOCK`, los horizontes Intradía/1 semana de `MVP_SANDBOX_LIMITS` y **sin apalancamiento** (leverage 1x incluso en Modo Libre — `LEVERAGE_MVP_LIMITS`); el acceso libre al apalancamiento llega con la Fase 5.
 - Activable desde la configuración, con una advertencia seria (no moralista) de que la progresión guiada existe porque el orden de aprendizaje importa.
 - Las sesiones de Modo Libre se etiquetan como tales y **no compiten** en los rankings del modo progresión ni en high scores de desafíos: guardan sus propias marcas personales separadas.
 - El Modo Libre no desactiva la evaluación: el usuario sigue recibiendo puntajes de disciplina, riesgo y proceso, y sus errores siguen alimentando el diario. Libertad de configuración, nunca libertad de consecuencias simuladas.
@@ -230,7 +235,7 @@ El Modo Libre existe para usuarios que no quieren la progresión o que ya saben 
 | Modo | Seed | Comportamiento |
 |---|---|---|
 | **Tutorial** | Fija, definida por el contenido | Contexto de aprendizaje fijo y replayable, diseñado para enseñar UN concepto con claridad. Mismo camino en cada repetición de la lección. |
-| **Desafío** | Fija por desafío, sellada | Mismo camino para todos los intentos → ranking justo. La seed (y el hash del camino) es visible para el usuario como prueba de equidad. |
+| **Desafío** | Fija por desafío, sellada | Mismo camino para todos los intentos → ranking justo. Antes del intento, la prueba de equidad visible es `pathHash` + `seedType` + `generatorVersion`; la seed cruda se revela al cerrar el intento (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08). |
 | **Sandbox** | Aleatoria por defecto | El usuario puede: guardar la seed actual con nombre, reproducir una seed guardada, reiniciar la misma seed tras una quiebra, o generar una nueva. La aleatoriedad siempre pasa por el generador de regímenes de mercado: variación impredecible pero estructuralmente realista, nunca ruido puro. |
 | **Replay** | La misma seed de la sesión original | Misma seed → mismo camino, mismo event schedule, mismo perfil de spread/slippage. El decision log original se muestra superpuesto para revisión, y el usuario puede operar de nuevo y comparar decisiones viejas contra nuevas. |
 | **Histórico-inspirado / histórico (futuro)** | Seeds referenciales reservadas | Post-MVP. El formato de seed y el campo `seed_type` ya los contemplan para no romper compatibilidad. |
@@ -250,9 +255,9 @@ El Modo Libre existe para usuarios que no quieren la progresión o que ya saben 
 
 | Bloque | Contenido MVP |
 |---|---|
-| **Sandbox** | Configuración completa de la sección 1 (mercados sintéticos, capital, dificultad, los 7 horizontes, velocidad, indicadores on/off, hints on/off, leverage si desbloqueado); seed aleatoria, guardar/reproducir/reiniciar seed; guardar y retomar sesión; historial de trades; export/import de progreso. |
-| **Desafíos** | Desafío diario, desafíos de habilidad básicos, desafío de disciplina de riesgo, desafío sin indicadores y desafío de supervivencia — todos con seed fija. |
-| **Rankings y scores** | High score local por desafío, por mercado, por horizonte y por dificultad; personal best por seed guardada; registro completo de high score (tabla de la sección 6); separación por `generator_version`. |
+| **Sandbox** | Versión mínima según `MVP_SANDBOX_LIMITS` (documento 12): los 3 instrumentos de `MVP_MARKET_LOCK`, capital, dificultad, **horizontes Intradía y 1 semana**, velocidad, indicadores on/off, hints on/off, **sin leverage**; seed aleatoria, guardar/reproducir/reiniciar seed; historial de trades; export/import del progreso completo (sin export por sesión ni guardar/retomar sesión larga). |
+| **Desafíos** | El set canónico de 6 de `MVP_CONTENT_LOCK`: Supervivencia 50 velas, Riesgo de hierro, Sin indicadores, Paciencia, Stop obligatorio y Costos reales — todos con seed fija. |
+| **Rankings y scores** | High score local por desafío y personal best por seed guardada; registro completo de high score (tabla de la sección 6); separación por `generator_version`. Claves por mercado, horizonte y dificultad: post-MVP. |
 | **Puntaje** | Las cuatro categorías (disciplina, riesgo, proceso, supervivencia) + resultado de cuenta, con la regla de oro de ponderación. |
 | **Fallo y reinicio** | Quiebra, margin call, violación de reglas, drawdown (en su desafío), revisión pedagógica post-fallo, reinicio misma seed / nueva seed. |
 | **Replay** | Replay de sesión con decision log visible y comparación básica de decisiones. |
@@ -262,6 +267,8 @@ El Modo Libre existe para usuarios que no quieren la progresión o que ya saben 
 
 | Fase posterior | Contenido |
 |---|---|
+| **Sandbox completo** | Los 7 horizontes (1 mes a 2 años), guardar y retomar sesión, export/import por sesión individual, índice sintético como mercado, leverage por desbloqueo (Fase 5). Movido fuera del MVP por `MVP_SANDBOX_LIMITS`, `MVP_MARKET_LOCK` y `LEVERAGE_MVP_LIMITS`. |
+| **Rankings ampliados** | Claves de ranking por mercado, por horizonte temporal y por dificultad. |
 | **Desafíos avanzados** | Trampa de copiado de señales (requiere el sistema de señales sembradas del event schedule maduro), interés compuesto a largo plazo y control de drawdown como desafíos rankeados completos. |
 | **Replay avanzado** | Comparación lado a lado enriquecida (métricas diferenciales por decisión, "qué hubiera pasado si" sobre el mismo camino sellado). |
 | **Temporadas locales** | Archivado automático de rankings por temporada cuando cambia la versión del generador, con vista de temporadas pasadas. |

@@ -26,14 +26,16 @@
 
 El currículo se organiza en **6 niveles (etapas)** con **29 lecciones**. Cada nivel es una etapa de aprendizaje con su propia ficha y su propio marco de Learning Context Contract; cada lección dentro del nivel tiene su escenario, sus trampas y sus criterios concretos.
 
-| Nivel | Nombre de etapa | Tema central | Lecciones | MVP |
+| Nivel | Nombre de etapa | Tema central | Lecciones | Relación con el MVP |
 |---|---|---|---|---|
-| 1 | Fundamentos del mercado | Qué es el mercado, el precio y la vela; long y short | 4 | Sí |
-| 2 | Supervivencia y riesgo | Riesgo, stop loss, take profit, sizing, risk/reward, señales | 6 | Sí |
-| 3 | Estructura de mercado | Soportes/resistencias, trendlines, HH/LL, volumen | 4 | Sí |
-| 4 | Indicadores y patrones | Medias móviles, RSI, MACD, breakouts, pullbacks | 5 | Parcial |
+| 1 | Fundamentos del mercado | Qué es el mercado, el precio y la vela; long y short | 4 | Conceptos empaquetados en M1 |
+| 2 | Supervivencia y riesgo | Riesgo, stop loss, take profit, sizing, risk/reward, señales | 6 | Conceptos empaquetados en M2/M3 |
+| 3 | Estructura de mercado | Soportes/resistencias, trendlines, HH/LL, volumen | 4 | Conceptos esenciales en M1/M4 |
+| 4 | Indicadores y patrones | Medias móviles, RSI, MACD, breakouts, pullbacks | 5 | Solo trampas de 4.4/4.5 vía escenarios; 4.1–4.3 post-MVP |
 | 5 | Estilos de trading | Trend-following, mean reversion, scalping, day, swing, news | 5 | No (post-MVP) |
 | 6 | Maestría y proceso | SMC, liquidez, backtesting, journaling, psicología | 5 | No (post-MVP) |
+
+> El MVP implementa exclusivamente las **15 lecciones cortas M1–M5** definidas por `MVP_CONTENT_LOCK` (documento 12, sección 3); este currículo de 29 lecciones es la referencia completa y la ruta de expansión post-MVP (ver sección 9).
 
 Progresión de gamificación asociada: cada lección otorga XP; completar un nivel sube de nivel al usuario y desbloquea habilidades, herramientas y desafíos del siguiente bloque. La racha diaria de práctica se alimenta de cualquier lección, repaso o desafío.
 
@@ -325,13 +327,15 @@ Reglas de orden no negociables:
 
 ### Lecciones en el MVP vs postergadas
 
-| Bloque | Estado | Justificación |
+> **El alcance educativo del MVP está cerrado por `MVP_CONTENT_LOCK` (documento 12, sección 3).** El MVP empaqueta los conceptos esenciales de este currículo en **15 lecciones cortas (M1–M5)**; ninguna lección de este documento se implementa individualmente en el MVP. Las 29 lecciones de este documento son el **currículo completo de referencia** y la ruta de expansión post-MVP (Fase 4). Ante contradicción entre este documento y el lock, gana el lock.
+
+| Bloque del currículo | Estado | Cobertura en el MVP |
 |---|---|---|
-| Nivel 1 completo (1.1–1.4) | **MVP** | Base imprescindible |
-| Nivel 2 completo (2.1–2.6) | **MVP** | Corazón del producto: riesgo y trampa de señales |
-| Nivel 3 completo (3.1–3.4) | **MVP** | Estructura es prerrequisito de todo lo demás |
-| 4.4 Breakouts/fake breakout y 4.5 Pullbacks/FOMO | **MVP** | Son las trampas insignia de Burgundy y alimentan los primeros desafíos |
-| 4.1–4.3 Indicadores (MA, RSI, MACD) | **MVP si los recursos lo permiten; si no, primera ola post-MVP** | Valiosos pero no bloquean la promesa central |
+| Nivel 1 (1.1–1.4) | **Referencia — conceptos en MVP vía M1** | Base imprescindible: precio, oferta/demanda, velas, timeframes |
+| Nivel 2 (2.1–2.6) | **Referencia — conceptos en MVP vía M2 y M3** | Corazón del producto: costos invisibles, riesgo, stop loss, sizing, risk/reward, drawdown |
+| Nivel 3 (3.1–3.4) | **Referencia — conceptos esenciales en MVP vía M1/M4** | La estructura completa como lecciones dedicadas llega en Fase 4 |
+| 4.4 Breakouts/fake breakout y 4.5 Pullbacks/FOMO | **Referencia — sus trampas viven en los escenarios MVP** | Escenarios 4 y 10 del documento 10 y módulos M4/M5 |
+| 4.1–4.3 Indicadores (MA, RSI, MACD) | **Post-MVP (primera ola)** | Valiosos pero no bloquean la promesa central; quedan fuera del MVP de forma cerrada (sin cláusula "según recursos") |
 | Nivel 5 completo (5.1–5.5) | **Post-MVP (primera ola)** | Requiere perfiles de costos y eventos más ricos |
 | Nivel 6 completo (6.1–6.5) | **Post-MVP (segunda ola)** | Requiere journal maduro, lotes multi-semilla y replay longitudinal; 6.4 (journaling básico) puede adelantarse si el diario del MVP lo soporta |
 | Escenarios histórico-inspirados de cualquier nivel | **Futuro** | El currículo es historical-ready; ninguna lección del MVP depende de datos reales |
