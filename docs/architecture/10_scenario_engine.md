@@ -565,7 +565,7 @@ Cada error detectado genera: una entrada en el registro de errores, una explicac
 | **Condición de éxito** | Llegar al día 90 con drawdown máximo < 25%. Niveles de logro: Bronce (sobrevivió), Plata (sobrevivió con dd < 15%), Oro (sobrevivió con dd < 10% y cero errores graves). |
 | **Condición de fracaso** | Drawdown ≥ 25% en cualquier momento → fin del challenge (puede reintentar la temporada desde cero). |
 | **Métricas / Score de ranking** | Score compuesto: supervivencia (peso mayor) + inverso del drawdown máximo + consistencia de riesgo + errores graves (penalización) + retorno (peso menor, deliberadamente). |
-| **Feedback** | Informe de campaña completo: curva de equity, mapa de errores sobre la línea de tiempo, comparación contra los percentiles del ranking local de sesiones. |
+| **Feedback** | Informe de campaña completo: curva de equity, mapa de errores sobre la línea de tiempo, comparación contra los intentos anteriores del propio usuario (mejora de proceso entre temporadas; sin percentiles de referencia — AUD-018). |
 | **Replay** | Replay completo de los 90 días con las decisiones marcadas sobre el path. High score guardado por temporada. |
 | **Desbloqueo** | Escenarios 1–11 completados. |
 | **Modo libre** | No — solo como challenge formal (su valor depende de las reglas duras). |
@@ -716,7 +716,8 @@ Ruta de progresión (desbloqueos): 1 → 2 → 3 → 4 → {5, 8} → 6 → 7 �
 
 ### 8.5 Rankings de sesión y high scores
 - Solo escenarios con **seed fija** alimentan rankings: la comparación es justa porque el mercado fue idéntico. El ranking principal usa el **primer intento por seed**; los intentos `seed_known = true` (replay, seed guardada) quedan fuera de esa tabla (`SEED_PATH_REPLAY_EXPORT_LOCK`, documento 08).
-- Ranking local (sin nube): el usuario compite contra sus propias sesiones pasadas y contra percentiles de referencia empaquetados con la app.
+- Ranking local (sin nube): el usuario compite **únicamente contra sus propias sesiones pasadas** — primer intento por seed y mejora contra su intento anterior. No existen percentiles de referencia empaquetados, ni población de comparación, ni ranking online: el ranking es historial personal, nunca métrica de status (AUD-018).
+- El orden de toda tabla es el **score total de `SCORING_V1_LOCK`** (proceso-ponderado, Rentabilidad ≤ 25%), nunca el retorno bruto ni el P&L: una sesión con más ganancia y peor proceso queda debajo de una con menos ganancia y mejor proceso. Claves de ranking MVP: por challenge y personal best por seed guardada (`MVP_CONTENT_LOCK`, `MVP_SANDBOX_LIMITS`, documento 12); runs con seeds, dificultades o `generatorVersion` distintos nunca se comparan entre sí.
 - El high score guarda: score, seed, `generatorVersion`, hash de path, métricas de proceso y metadatos de replay — un high score siempre es auditable y reproducible.
 
 ### 8.6 Export / import de progreso

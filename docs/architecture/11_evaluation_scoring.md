@@ -269,6 +269,13 @@ Repetir un seed es una herramienta de aprendizaje legítima (replay), pero conoc
 
 Todos los rankings son **locales** (no hay cuenta ni nube). Comparan los intentos del propio usuario y, en el futuro, podrían compararse archivos exportados entre amigos (import/export ya soporta llevar el historial). Cada ranking guarda score total, grade, desglose por categoría y métricas clave.
 
+Reglas transversales (AUD-018):
+
+- **El criterio de orden de toda tabla es el score total de `SCORING_V1_LOCK`** (proceso-ponderado, Rentabilidad ≤ 25%), nunca el retorno bruto ni el P&L. No existe ningún ranking "por retorno".
+- **No existen percentiles de referencia empaquetados ni población de comparación.** El ranking es historial personal y mejora de proceso ("mejora contra tu intento anterior"), nunca métrica de status ni competencia externa.
+- **Solo se comparan runs comparables:** mismo seed, misma dificultad, mismo `generatorVersion`. Nada de esto requiere backend, datos reales ni población online; eliminar cualquier tabla no rompe el scoring (el score se calcula por sesión, independiente de los rankings).
+- **Claves de ranking del MVP:** por challenge (`MVP_CONTENT_LOCK`) y personal best por seed guardada (`MVP_SANDBOX_LIMITS`), más el historial por sesión (sección 9). Las claves por mercado, por horizonte temporal y por dificultad (secciones 11–13) son **post-MVP** según `MVP_SANDBOX_LIMITS` (documento 12).
+
 ### 9. Ranking por sesión
 
 - Lista histórica de todas las sesiones del usuario ordenadas por score total.
@@ -281,17 +288,17 @@ Todos los rankings son **locales** (no hay cuenta ni nube). Comparan los intento
 - Como los desafíos usan **seeds fijos**, todos los intentos de un mismo desafío enfrentaron exactamente el mismo mercado: la comparación es justa por construcción (ver sección 18).
 - Columna obligatoria junto al score: **drawdown máximo** y **grade**, para reforzar que el primer puesto no es "el que más ganó".
 
-### 11. Ranking por mercado
+### 11. Ranking por mercado *(post-MVP — `MVP_SANDBOX_LIMITS`)*
 
 - Tablas separadas por tipo de activo simulado (p. ej. divisas, cripto, índices, acciones — según los mercados sintéticos definidos en el motor).
 - Sirve para que el usuario descubra en qué tipo de mercado su proceso es más débil (p. ej. buen score en tendencias suaves, mal score en mercados volátiles tipo cripto).
 
-### 12. Ranking por horizonte temporal
+### 12. Ranking por horizonte temporal *(post-MVP — `MVP_SANDBOX_LIMITS`)*
 
 - Tablas por duración/timeframe de la simulación: scalping simulado, intradía, swing, posición de largo plazo.
 - Las métricas se interpretan por horizonte: el rango esperado de número de trades, el umbral de overtrading y el peso de la paciencia cambian según el horizonte (más trades es normal en intradía; en swing, overtrading se detecta antes).
 
-### 13. Ranking por dificultad
+### 13. Ranking por dificultad *(post-MVP — `MVP_SANDBOX_LIMITS`)*
 
 - Cada nivel de dificultad (definido por volatilidad del path, costos de spread/slippage, límites de riesgo más estrictos, menos información visible) tiene tabla separada.
 - **Los scores no se mezclan entre dificultades**: un 80 en difícil no compite contra un 80 en fácil.
