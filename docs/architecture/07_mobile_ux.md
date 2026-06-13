@@ -458,7 +458,7 @@ Principio: el error técnico nunca culpa al usuario y nunca pierde su progreso s
 
 ### Explícitamente fuera de alcance (por diseño del producto)
 
-Sin dinero real, sin brokers, sin login, sin nube, sin monetización, sin cursos pagos, sin coach de IA, sin ranking entre usuarios, sin mensajería ni social.
+Sin dinero real, sin brokers, sin login, sin nube, sin monetización, sin cursos pagos, sin coach de IA, sin ranking entre usuarios, sin mensajería ni social. La pestaña Academia y sus lecciones son micro-lecciones integradas al simulador, no una plataforma de cursos (definición canónica de "sin cursos": `01_product_definition.md` §7.1).
 
 ---
 

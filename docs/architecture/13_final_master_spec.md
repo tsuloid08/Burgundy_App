@@ -90,7 +90,7 @@ Glosario base (regla de terminología real — término en inglés estándar + e
 | 2 | Solo en español, dirigida a LATAM |
 | 3 | App móvil propietaria: Android 15+ / iOS 20+ (configuración verificable y acta de mapeo iOS: `PLATFORM_TARGET_LOCK`, documento 08) |
 | 4 | Sin login, sin cuenta en la nube |
-| 5 | Sin monetización, sin cursos, sin coach de IA |
+| 5 | Sin monetización, sin cursos, sin coach de IA — "sin cursos" según la definición canónica de `01_product_definition.md` §7.1: micro-lecciones internas permitidas; plataforma de cursos, LMS, login y monetización educativa prohibidos |
 | 6 | Offline-first; progreso 100% local; export/import de archivo de progreso |
 | 7 | Sin integración con brokers reales; sin trading con dinero real; no es asesoría financiera |
 | 8 | Encuadre educativo sin pantallas legales pesadas; cero promesas de ganancia, cero hype |
@@ -487,7 +487,7 @@ Tesis que el MVP debe demostrar:
 | Persistencia | 100% local; export/import `.burgundy` con validación y backup |
 | UX | Las 25 pantallas esenciales, las 9 advertencias beginner-safe, accesibilidad AA |
 
-**Excluido del MVP sin excepción:** replay histórico real e ingesta de datos, integración con brokers, dinero real, señales reales, coach de IA, monetización, login/nube, cursos, rankings online entre usuarios, otros idiomas, leverage/margen avanzado y futuros (Fase 5), índices sintéticos y commodities (post-MVP temprano), horizontes de sandbox superiores a 1 semana y export de sesión individual (Fase 3+).
+**Excluido del MVP sin excepción:** replay histórico real e ingesta de datos, integración con brokers, dinero real, señales reales, coach de IA, monetización, login/nube, cursos (plataforma de cursos según `01_product_definition.md` §7.1; las micro-lecciones internas del MVP no son cursos), rankings online entre usuarios, otros idiomas, leverage/margen avanzado y futuros (Fase 5), índices sintéticos y commodities (post-MVP temprano), horizontes de sandbox superiores a 1 semana y export de sesión individual (Fase 3+).
 
 **Locks vigentes (resumen, una línea por lock):**
 

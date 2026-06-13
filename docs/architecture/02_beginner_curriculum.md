@@ -20,6 +20,8 @@
 7. **Conceptos avanzados solo después de fundamentos.** Smart Money Concepts y conceptos de liquidez quedan bloqueados hasta completar estructura de mercado y gestión de riesgo, incluso si el usuario es impaciente (con la excepción controlada del modo libre, sección 10).
 8. **Psicología como eje transversal.** Overtrading, revenge trading y FOMO se detectan y retroalimentan desde el Nivel 2, y se consolidan en un módulo propio al final.
 
+> **Nota terminológica (AUD-019):** todas las lecciones, niveles y rutas de aprendizaje de este documento son **micro-lecciones integradas al simulador**, no cursos. Aplica la definición canónica de "sin cursos" de `01_product_definition.md` §7.1: este currículo no es un catálogo de cursos y no implica LMS, login ni monetización educativa.
+
 ---
 
 ## 2. Estructura general de la ruta de aprendizaje

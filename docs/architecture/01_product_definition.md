@@ -125,10 +125,32 @@ Burgundy **no es**:
 | Una promesa de riqueza | Prohibido el mensaje "hazte rico", el hype y el lujo aspiracional |
 | Una plataforma con cuentas | Sin login, sin nube, sin recolección de datos personales |
 | Un producto monetizado | Sin compras, sin suscripciones, sin anuncios (en este alcance) |
-| Un catálogo de cursos | La enseñanza vive dentro del simulador y sus lecciones, no como cursos vendibles |
+| Un catálogo de cursos | La enseñanza vive dentro del simulador y sus lecciones, no como cursos vendibles (definición canónica en §7.1) |
 | Un coach de IA | Sin asistente de IA conversacional |
 | Un manipulador de mercado | El simulador jamás mueve el precio contra el usuario tras detectar su operación |
 | Algo que hace ver el trading fácil | El producto comunica explícitamente la dificultad y el riesgo |
+
+### 7.1 Definición canónica: "sin cursos" vs micro-lecciones (AUD-019)
+
+**"Sin cursos" significa que Burgundy no es una plataforma de cursos.** En concreto, queda **prohibido**:
+
+- cursos pagos y cualquier monetización educativa (paywall, suscripciones, certificaciones);
+- LMS o módulos comerciales tipo academia online;
+- catálogo externo o marketplace de educación;
+- mentoría, profesores/coaches o comunidad de alumnos;
+- contenido de terceros o módulos pasivos tipo video-curso;
+- login o cuenta para acceder a contenido educativo.
+
+**"Sin cursos" no prohíbe las micro-lecciones educativas internas**, que sí son parte del producto porque enseñan a usar la simulación y a entender decisiones de trading. Quedan **permitidos**:
+
+- tutoriales integrados y onboarding educativo;
+- explicaciones contextuales dentro de la app;
+- los módulos de aprendizaje del MVP (las 15 lecciones M1–M5 de `MVP_CONTENT_LOCK`);
+- micro-lecciones vinculadas a escenarios y sus Learning Context Contracts;
+- feedback posterior a decisiones;
+- conceptos mínimos para principiantes (glosario y repasos).
+
+Esta definición vive **una sola vez aquí**; los documentos 02, 07 y 13 la citan, no la redefinen. Regla para implementación (Prompt 14): las micro-lecciones internas se implementan como parte del simulador; nunca se modelan, nombran ni presentan como "course product", plataforma de cursos, LMS ni contenido monetizado.
 
 ---
 
@@ -282,7 +304,7 @@ Burgundy debe estar **preparada para datos históricos sin depender de ellos**:
 | 1 | App solo en español, dirigida a LATAM |
 | 2 | Sin login ni cuenta en la nube |
 | 3 | Sin monetización |
-| 4 | Sin cursos |
+| 4 | Sin cursos (definición canónica: §7.1 — micro-lecciones internas permitidas; plataforma de cursos prohibida) |
 | 5 | Sin coach de IA |
 | 6 | Offline-first |
 | 7 | Progreso guardado localmente |
@@ -336,7 +358,7 @@ Burgundy debe estar **preparada para datos históricos sin depender de ellos**:
 | Integración con brokers reales | Excluida permanentemente del producto |
 | Trading con dinero real | Excluido permanentemente |
 | Monetización (pagos, suscripciones, anuncios) | Excluida en este alcance |
-| Cursos | Excluidos; la enseñanza vive en el simulador |
+| Cursos | Excluidos; la enseñanza vive en el simulador como micro-lecciones internas (ver §7.1) |
 | Coach de IA | Excluido |
 | Login, cuentas en la nube, sincronización en servidor | Excluidos; la portabilidad se resuelve con exportación/importación local |
 | Rankings online globales entre usuarios | Excluidos del MVP; los rankings son por sesión y locales |
