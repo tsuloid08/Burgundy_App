@@ -121,7 +121,7 @@ Burgundy (raíz)
 | 15 | **Controles de velocidad de simulación** | Pausar, avanzar vela a vela, x1, x2, x5. | Siempre visibles en el simulador; pausa automática en eventos de tutorial. |
 | 16 | **Selector de horizonte temporal** | Elegir duración de la sesión simulada y timeframe de velas. | Se elige en el briefing; dentro de la sesión solo cambia la vista del timeframe, no el camino generado. |
 | 17 | **Panel de desempeño** | Dashboard de largo plazo: métricas de proceso, no solo de ganancia. | Win rate, risk/reward promedio, drawdown máximo, adherencia al stop loss, frecuencia de errores, evolución de XP. |
-| 18 | **Evaluación final** | Cierre de cada sesión: calificación de proceso y resultado por separado. | Dos puntajes: "Resultado" y "Calidad de decisiones"; desglose de errores; XP ganada; acceso directo a revisión de errores. |
+| 18 | **Evaluación final** | Cierre de cada sesión: calificación de proceso y resultado por separado. | Dos puntajes: "Resultado" y "Calidad de decisiones"; XP ganada; acceso directo a revisión de errores. Vista inicial resumida con la jerarquía de feedback de §4.2 (decisiones → regla de riesgo → concepto → P/L); desglose completo de errores y score colapsado bajo "Ver desglose completo". |
 | 19 | **Revisión de errores** | Aprender de las fallas con replay puntual. | Línea de tiempo de la sesión con marcadores de error; tocar un error reproduce el momento exacto sobre el gráfico con explicación. |
 | 20 | **Modo Sandbox** | Práctica libre con semilla aleatoria, sin objetivos impuestos. | Aviso explícito de semilla aleatoria; opción de guardar la semilla para repetir. |
 | 21 | **Modo Desafío** | Escenarios con semilla fija, reglas estrictas y ranking local. | Aviso de semilla bloqueada; reglas visibles antes de iniciar; reinicio reinicia el mismo escenario. |
@@ -254,7 +254,7 @@ Orden de prioridad visual de arriba hacia abajo, pensado para uso con una mano e
 | 7 | **Paneles secundarios** (pestañas internas colapsables) | Posiciones abiertas, calculadora de riesgo, journal rápido, panel de cuenta extendido. | Colapsados por defecto para no abrumar al principiante. |
 | 8 | **Overlay de tutorial** (solo en tutorial) | Pistas contextuales ancladas al elemento relevante, con pausa automática de la simulación. | Botón persistente "💡" para re-invocar pistas. |
 
-**Confirmación de operación (obligatoria):** ningún trade se ejecuta sin un resumen previo que muestre: dirección, tamaño, riesgo en % y en dinero simulado, SL, TP, risk/reward, spread, fees y slippage estimados. En tutorial y desafíos no se puede desactivar; en sandbox el usuario puede activar "confirmación rápida" solo a partir de cierto nivel desbloqueado.
+**Confirmación de operación (obligatoria):** ningún trade se ejecuta sin un resumen previo que muestre: dirección, tamaño, riesgo en % y en dinero simulado, SL, TP, risk/reward, spread, fees y slippage estimados. Este resumen se presenta como **Risk Preview en lenguaje claro** (ver §4.2), con el detalle técnico secundario. En tutorial y desafíos no se puede desactivar; en sandbox el usuario puede activar "confirmación rápida" solo a partir de cierto nivel desbloqueado.
 
 ### 4.1 Presupuesto de render y densidad por defecto (`BEGINNER_HUD_LOCK`)
 
@@ -272,6 +272,55 @@ Orden de prioridad visual de arriba hacia abajo, pensado para uso con una mano e
 > - Por defecto, el principiante ve únicamente: **chart + franja mínima de cuenta/riesgo + acción principal (Comprar/Vender) + controles de velocidad**.
 > - **Todos los paneles avanzados** (posiciones, calculadora de riesgo, journal rápido, cuenta extendida) están **colapsados por defecto** y se abren bajo demanda como bottom sheets o pestañas internas.
 > - Este lock fija únicamente el presupuesto de render y la densidad por defecto. La reorganización completa de densidad Beginner/Expanded (AUD-015, gravedad Media) queda explícitamente fuera de su alcance: aquí no se rediseñan pantallas.
+
+### 4.2 Niveles de densidad del HUD: `Beginner HUD` y `Expanded HUD` (resuelve AUD-015)
+
+Esta sección completa la reorganización de densidad que `BEGINNER_HUD_LOCK` (§4.1) dejó explícitamente fuera de su alcance. No modifica el presupuesto de render ni la densidad por defecto que el lock fijó; los desarrolla en reglas de visualización concretas. Ante contradicción, gana el lock. No se agregan pantallas ni features: solo se ordena la presentación de lo que ya existe.
+
+**`Beginner HUD` (estado por defecto, todos los modos):**
+
+- **Chart-first:** el gráfico domina la pantalla (50–60%, sección 4) y nada compite con él.
+- Visible únicamente lo mínimo para operar y aprender: **chart + franja mínima de cuenta/riesgo + Comprar/Vender + controles de velocidad** — exactamente lo que fija `BEGINNER_HUD_LOCK`.
+- La franja de cuenta muestra solo balance, equity y P/L abierto en forma simple; margen, drawdown y detalle de costos viven en el estado expandido.
+- **Nunca visibles por defecto:** métricas avanzadas, paneles técnicos, ranking, breakdown de score, información de seed/debug, tablas de datos. El principiante no ve todo de golpe.
+
+**`Expanded HUD` (estado expandido, bajo demanda):**
+
+- Se abre por **expansión manual** (los bottom sheets y pestañas internas colapsables de la sección 4) y al cerrarse vuelve al `Beginner HUD`.
+- Contiene: posiciones abiertas, calculadora de riesgo, journal rápido, cuenta extendida (margen, drawdown), detalle de spread/fees/slippage y métricas avanzadas.
+- Es un **estado del simulador, no una pantalla nueva ni un modo profesional**: no convierte el MVP en una terminal tipo broker/TradingView.
+- **No es requisito para completar el MVP:** todo el contenido MVP (tutorial, sandbox, challenges) puede completarse operando solo desde el `Beginner HUD`.
+- Campos avanzados adicionales aparecen solo cuando una lección los introduce o un desbloqueo los habilita (densidad progresiva, regla 7.12).
+
+**Progressive disclosure (regla transversal de toda la app):**
+
+- Toda información avanzada nace **colapsada por defecto**: métricas avanzadas, seed/debug, explicación extendida de un término, breakdown completo del score y datos técnicos solo aparecen bajo expansión manual del usuario.
+- Cada superficie muestra primero el resumen y ofrece "Ver más" / "Ver desglose completo".
+
+**Order Sheet / Risk Preview (resumen previo obligatorio, en lenguaje claro):**
+
+La confirmación de operación de la sección 4 se presenta como un resumen simple explicado en español claro — no solo números técnicos. Antes de confirmar, el usuario siempre ve:
+
+- **Riesgo estimado:** "Estás arriesgando el 1.5% de tu cuenta: $15 simulados."
+- **Stop loss:** "Si el precio llega a X, la operación se cierra con esa pérdida."
+- **Tamaño de posición.**
+- **Pérdida máxima aproximada** en dinero simulado.
+- **Relación riesgo/recompensa** cuando aplique: "Arriesgas 1 para ganar 2."
+
+El detalle técnico completo (spread, fees, slippage estimados) permanece accesible pero secundario, debajo del resumen claro.
+
+**Feedback posterior a la decisión (jerarquía obligatoria):**
+
+La evaluación final y el feedback por operación priorizan, en este orden:
+
+1. Qué hizo bien y qué hizo mal (decisiones, no resultado).
+2. Qué regla de riesgo respetó o rompió.
+3. Qué concepto debía aprender en esta sesión/lección.
+4. El P/L, al final y por separado.
+
+La vista inicial del feedback es resumida, sin tablas extensas; el breakdown completo del score y las tablas detalladas quedan colapsados bajo "Ver desglose completo".
+
+**Criterio de prueba:** el `Beginner HUD`, el Risk Preview y la vista inicial del feedback se validan con tamaño de fuente del sistema **+30%** (sección 8.3) sin romper el layout ni ocultar la acción principal.
 
 ---
 
@@ -333,7 +382,7 @@ Requisitos obligatorios:
 9. **Carga percibida:** ninguna espera sin indicador; la generación de escenario muestra progreso con el mensaje de confianza.
 10. **Confirmaciones destructivas:** cerrar posición, abandonar sesión, restablecer datos e importar progreso requieren confirmación explícita; restablecer e importar requieren doble paso.
 11. **Texto en español LATAM:** voseo neutro evitado; se usa "tú" estándar LATAM; sin jerga local de un solo país.
-12. **Densidad progresiva:** el principiante ve menos paneles; los paneles avanzados (margen, slippage detallado) aparecen según el nivel o el escenario lo requiera. La densidad por defecto del MVP y el presupuesto de render están cerrados por `BEGINNER_HUD_LOCK` (sección 4.1).
+12. **Densidad progresiva:** el principiante ve menos paneles; los paneles avanzados (margen, slippage detallado) aparecen según el nivel o el escenario lo requiera. Los dos niveles de densidad del MVP (`Beginner HUD` y `Expanded HUD`) están definidos en la sección 4.2; la densidad por defecto y el presupuesto de render están cerrados por `BEGINNER_HUD_LOCK` (sección 4.1).
 
 ---
 
@@ -405,7 +454,7 @@ Principio: el error técnico nunca culpa al usuario y nunca pierde su progreso s
 - Modo sin indicadores como desafío avanzado adicional (la UX lo define; su contenido completo puede llegar después del primer arco).
 - Modo horizontal de gráfico ampliado.
 - Resumen hablado avanzado del gráfico para lectores de pantalla (MVP incluye etiquetas básicas).
-- Densidad progresiva avanzada por nivel (MVP usa dos densidades: principiante y estándar).
+- Densidad progresiva avanzada por nivel (MVP usa dos densidades: `Beginner HUD` y `Expanded HUD`, sección 4.2).
 
 ### Explícitamente fuera de alcance (por diseño del producto)
 

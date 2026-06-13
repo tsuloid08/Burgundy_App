@@ -34,8 +34,8 @@ Flujo principal (sin login, sin nube):
 1. **Primera apertura:** bienvenida breve en español, disclaimer educativo ("esto no es asesoría financiera, no hay dinero real"), creación silenciosa del perfil local.
 2. **Ruta guiada inicial:** el tutorial es obligatorio antes de desbloquear sandbox y challenges (progresión por desbloqueo).
 3. **Hub central:** pantalla principal con: racha diaria, XP, nivel, siguiente lección sugerida, challenges disponibles, acceso a sandbox y a su journal de errores.
-4. **Sesión de simulación:** gráfico de velas como foco visual (velas alcistas #4A6D56, bajistas #802F3E), panel de orden, balance/equity/riesgo/P&L visibles, fondo #1A1617, superficies #2E2E2E, acentos #571324 y resaltados críticos #C9A050.
-5. **Cierre de sesión:** resumen con score basado en el Learning Context Contract, errores detectados, explicación de cada error en español claro, y opción de **replay con el mismo seed**.
+4. **Sesión de simulación:** gráfico de velas como foco visual (velas alcistas #4A6D56, bajistas #802F3E), panel de orden, balance/equity/riesgo/P&L visibles, fondo #1A1617, superficies #2E2E2E, acentos #571324 y resaltados críticos #C9A050. Densidad: `Beginner HUD` por defecto y `Expanded HUD` bajo expansión manual, con Risk Preview en lenguaje claro antes de confirmar cada operación (`BEGINNER_HUD_LOCK` y documento 07 §4.2).
+5. **Cierre de sesión:** resumen con score basado en el Learning Context Contract, errores detectados, explicación de cada error en español claro, y opción de **replay con el mismo seed**. Vista inicial resumida (decisiones y reglas de riesgo primero, P&L después); desglose completo colapsado (documento 07 §4.2).
 6. **Progresión:** XP, niveles, desbloqueos de habilidades y challenges, high scores locales.
 
 Tono en toda la app: claro, serio, directo, educativo. Nunca infantil, nunca hype, nunca promesa de riqueza.
